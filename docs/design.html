@@ -79,10 +79,36 @@ section { display: grid; gap: 20px; min-width: 0; scroll-margin-top: 16px; }
 
 header { display: grid; gap: 18px; }
 .sign { font-family: var(--font-mono); font-size: 13px; color: var(--muted); }
-.toc { display: flex; flex-wrap: wrap; gap: 8px; }
-.toc a { text-decoration: none; color: var(--fg); border: 1px solid var(--line); background: var(--surface); border-radius: 4px; padding: 6px 12px; font-size: 14px; display: inline-flex; gap: 8px; align-items: baseline; }
-.toc a b { font-family: var(--font-display); color: var(--accent); font-size: 16px; }
-.toc a:hover { border-color: var(--accent); }
+.toc { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr)); gap: 8px; }
+.toc-g { border: 1px solid var(--line); background: var(--surface); border-radius: 4px; padding: 8px 12px; display: grid; gap: 4px; align-content: start; }
+.toc-g > a { text-decoration: none; color: var(--fg); font-size: 15px; font-weight: 600; display: inline-flex; gap: 8px; align-items: baseline; }
+.toc-g > a b { font-family: var(--font-display); color: var(--accent); font-size: 18px; }
+.toc-g span { display: flex; flex-wrap: wrap; gap: 2px 12px; padding-left: 22px; }
+.toc-g span a { color: var(--muted); font-size: 13.5px; text-decoration: none; }
+.toc a:hover, .toc a:focus-visible { color: var(--accent); }
+.filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.filters input, .filters select { font: inherit; font-size: 15px; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 7px 10px; min-width: 0; }
+.filters input { flex: 1 1 240px; }
+.filters input:focus-visible, .filters select:focus-visible, .chip:focus-visible, .mod-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.chip, .mod-btn { font: inherit; font-size: 13.5px; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+.chip[aria-pressed="true"], .mod-btn[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.mod-btn { display: inline-flex; align-items: center; gap: 7px; border-radius: 4px; }
+.filter-count { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.deps { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 12px; }
+.deps .card ul { list-style: none; padding: 0; }
+.deps .card li { font-size: 14px; }
+.deps .card li code { font-size: 12.5px; }
+.deps .empty { color: var(--muted); font-style: italic; }
+.states { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); gap: 16px; }
+.states > div, .two > div > .wide { min-width: 0; }
+.states .diagram pre.mermaid { min-width: 0; }
+.states h3 { font-size: 18px; margin-bottom: 8px; }
+.risk-state { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; border-radius: 3px; padding: 1px 7px; white-space: nowrap; border: 1px solid currentColor; }
+.risk-state.open { color: var(--accent); }
+.risk-state.ok { color: var(--m-schedule); }
+.risk-state.acc { color: var(--muted); }
+.src { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--m-schedule); margin-left: 4px; white-space: nowrap; }
+.src.est { color: var(--muted); }
 .legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 14px; color: var(--muted); }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .sq { width: 11px; height: 11px; background: var(--c); flex: none; display: inline-block; }
@@ -195,17 +221,15 @@ footer { color: var(--muted); font-size: 14px; border-top: 1px solid var(--line)
 <header>
   <div class="sign">OKUTETA · API · PostgreSQL 18 + PostGIS · Java 25 · Spring Boot 4</div>
   <h1>Marcações em barbearias de Angola</h1>
-  <p class="lede">Modelo de dados, casos de uso e arquitetura do Okuteta, um marketplace onde o cliente encontra barbearias perto de si, escolhe o serviço e o barbeiro (ou "qualquer um") e marca a hora. Segue a mesma linha do Bazza: monólito modular, Clean Architecture e cada fornecedor atrás de uma porta. Ainda não há código, por isso tudo o que está aqui é uma proposta para aprovar.</p>
+  <p class="lede">Modelo de dados, casos de uso e arquitetura do Okuteta, um marketplace onde o cliente encontra barbearias perto de si, escolhe o serviço e o barbeiro (ou "qualquer um") e marca a hora. Segue a mesma linha do Bazza: monólito modular, Clean Architecture e cada fornecedor atrás de uma porta. O design foi aprovado a 27 de outubro de 2026 e ainda não há código.</p>
   <nav class="toc" aria-label="Partes">
-    <a href="#estado"><b>0</b>Âmbito e decisões</a>
-    <a href="#autenticacao"><b>0</b>Autenticação e 2FA</a>
-    <a href="#modelo"><b>1</b>Modelo de dados</a>
-    <a href="#casos-de-uso"><b>2</b>Casos de uso</a>
-    <a href="#arquitetura"><b>3</b>Arquitetura</a>
-    <a href="#aws"><b>3</b>Na AWS</a>
-    <a href="#capacidade"><b>4</b>Capacidade</a>
-    <a href="#operacao"><b>5</b>Operação</a>
-    <a href="#roadmap"><b>6</b>Plano de construção</a>
+    <div class="toc-g"><a href="#estado"><b>0</b>Âmbito e decisões</a><span><a href="#autenticacao">Autenticação e 2FA</a><a href="#riscos">Riscos</a><a href="#historico">Revisões</a></span></div>
+    <div class="toc-g"><a href="#modelo"><b>1</b>Modelo de dados</a><span><a href="#agenda">Agenda</a><a href="#ciclos">Ciclos de vida</a></span></div>
+    <div class="toc-g"><a href="#casos-de-uso"><b>2</b>Casos de uso</a><span><a href="#exemplos">Exemplos de pedidos</a></span></div>
+    <div class="toc-g"><a href="#arquitetura"><b>3</b>Arquitetura</a><span><a href="#visao">Visão geral</a><a href="#dependencias">Dependências</a><a href="#aws">Na AWS</a><a href="#custos">Custos</a></span></div>
+    <div class="toc-g"><a href="#capacidade"><b>4</b>Capacidade</a></div>
+    <div class="toc-g"><a href="#operacao"><b>5</b>Operação</a></div>
+    <div class="toc-g"><a href="#roadmap"><b>6</b>Plano de construção</a></div>
   </nav>
   <div class="legend" id="legend"></div>
 </header>
@@ -215,7 +239,7 @@ footer { color: var(--muted); font-size: 14px; border-top: 1px solid var(--line)
 <div class="part-title" id="estado"><span class="num">0</span><h2>Âmbito e decisões</h2></div>
 
 <section>
-  <p>O MVP tem oito módulos. O cliente procura barbearias aprovadas perto de si, vê os horários livres e marca um ou mais serviços com um barbeiro ou "sem preferência". A barbearia escolhe se a marcação confirma na hora ou se a aprova, e define o intervalo da agenda, a antecedência e a regra de faltas. O dono regista a barbearia, um administrador aprova-a, e o dono convida os barbeiros pelo telemóvel. Cada barbeiro tem conta própria e gere a sua agenda. O pagamento é feito direto à barbearia (espécie, Multicaixa Express, Unitel Money ou Afrimoney), e a plataforma regista o pagamento e o eventual reembolso: o Okuteta é grátis no MVP.</p>
+  <p>O MVP tem oito módulos. O cliente procura barbearias aprovadas perto de si, vê os horários livres e marca um ou mais serviços com um barbeiro ou "sem preferência". A barbearia escolhe se a marcação confirma na hora ou se a aprova, e define o intervalo da agenda, a antecedência e a regra de faltas. O dono regista a barbearia, um administrador aprova-a, e o dono convida os barbeiros pelo telemóvel. Cada barbeiro tem conta própria e gere a sua agenda. O pagamento é feito direto à barbearia (espécie, Multicaixa Express, Unitel Money, Afrimoney ou transferência), e a plataforma regista o pagamento e o eventual reembolso: o Okuteta é grátis no MVP.</p>
   <div class="status-grid">
     <div><b>8</b><span>módulos: user, shop, schedule, booking, review, notification, payment e messaging</span></div>
     <div><b>31</b><span>tabelas, incluindo os slots da agenda, as passkeys, o 2FA, o outbox e o ShedLock</span></div>
@@ -226,9 +250,9 @@ footer { color: var(--muted); font-size: 14px; border-top: 1px solid var(--line)
 </section>
 
 <section>
-  <div class="eyebrow">Para aprovar</div>
-  <h2>Decisões propostas</h2>
-  <p>As decisões de 1 a 14 foram trocadas pelas alternativas que escolheste (revisão de 27/10). As 15 e 16 ficaram como estavam.</p>
+  <div class="eyebrow">Aprovadas</div>
+  <h2>Decisões</h2>
+  <p>Todas aprovadas. As de 1 a 14 são as alternativas escolhidas na segunda revisão; as 15 e 16 ficaram como na primeira (ver <a href="#historico">Revisões</a>).</p>
   <div class="wide">
     <table class="grid">
       <thead><tr><th>#</th><th>Tema</th><th>Decisão</th><th>Porquê e consequências</th></tr></thead>
@@ -282,7 +306,7 @@ footer { color: var(--muted); font-size: 14px; border-top: 1px solid var(--line)
 <section>
   <div class="eyebrow">Viabilidade</div>
   <h2>2FA e MFA</h2>
-  <p><strong>São viáveis no MVP e reaproveitam quase tudo.</strong> Os códigos por SMS e WhatsApp, as passkeys e o token de passo intermédio (o mesmo do registo social) já existem por causa das formas de entrar. Falta só a app autenticadora (TOTP), que o JDK faz sem biblioteca, e os códigos de recuperação. Aqui, 2FA quer dizer pedir um segundo fator de outro canal depois do primeiro. MFA é o mesmo princípio com qualquer combinação, e a passkey já o cumpre sozinha.</p>
+  <p><strong>São viáveis no MVP e reaproveitam quase tudo.</strong> Os códigos por SMS e WhatsApp, as passkeys e o token de passo intermédio (o mesmo mecanismo do token de registo social) já existem por causa das formas de entrar. Falta só a app autenticadora (TOTP), que o JDK faz sem biblioteca, e os códigos de recuperação. Aqui, 2FA quer dizer pedir um segundo fator de outro canal depois do primeiro. MFA é o mesmo princípio com qualquer combinação, e a passkey já o cumpre sozinha.</p>
   <div class="wide">
     <table class="grid">
       <thead><tr><th>Fator</th><th>Segurança</th><th>Custo</th><th>Proposta</th></tr></thead>
@@ -354,6 +378,55 @@ sequenceDiagram
 </pre>
   </div>
 </section>
+
+<section id="riscos">
+  <div class="eyebrow">Riscos</div>
+  <h2>Riscos e questões em aberto</h2>
+  <p>Os riscos que estavam espalhados pelo documento, num só sítio. "Aceite" quer dizer que a decisão foi tomada a saber do risco; "em aberto" ainda precisa de alguém.</p>
+  <div class="wide">
+    <table class="grid">
+      <thead><tr><th>Risco</th><th>O que pode acontecer</th><th>Mitigação</th><th>Estado</th></tr></thead>
+      <tbody>
+        <tr><td>2FA opcional, com SMS e WhatsApp também para administradores</td><td class="fx">Uma senha de administrador roubada, ou uma troca de SIM, dá acesso às aprovações e aos comprovativos.</td><td class="fx">Confirmação em ações sensíveis, aviso de login num aparelho novo e lista de sessões.</td><td><span class="risk-state acc">aceite</span></td></tr>
+        <tr><td>Um só NAT Gateway</td><td class="fx">Se a zona A cair, as tarefas da zona B deixam de chegar ao Twilio, ao Brevo, ao Firebase e aos provedores de login.</td><td class="fx">Um NAT por zona custa mais ≈ 42 US$/mês.</td><td><span class="risk-state acc">aceite</span></td></tr>
+        <tr><td>A agenda depende do job diário de slots</td><td class="fx">Sem o job, o último dia da janela fica sem horários.</td><td class="fx">Alarme se não correr em 26 h. O job preenche todos os dias em falta, não só o último, por isso uma corrida perdida corrige-se na seguinte.</td><td><span class="risk-state ok">mitigado</span></td></tr>
+        <tr><td>Telefone da barbearia público</td><td class="fx">Cliente e barbearia combinam por fora da app.</td><td class="fx">Só importa se houver comissão; nesse caso, o telefone sai do perfil.</td><td><span class="risk-state acc">aceite</span></td></tr>
+        <tr><td>Dados pessoais fora de Angola</td><td class="fx">A Lei n.º 22/11 exige que a transferência para fora do país passe pela APD, seja qual for a região da AWS.</td><td class="fx">Fazer o pedido à APD antes de abrir ao público.</td><td><span class="risk-state open">em aberto</span></td></tr>
+        <tr><td>Aprovações de terceiros</td><td class="fx">O template de WhatsApp (Meta), a revisão do Facebook Login e a conta Apple Developer atrasam o lançamento.</td><td class="fx">Começar os pedidos já. Sem eles, a app só oferece SMS, e-mail, Google e passkeys.</td><td><span class="risk-state open">em aberto</span></td></tr>
+        <tr><td>Domínio <code>.ao</code></td><td class="fx">Sem domínio, as passkeys e os links por e-mail não abrem a app.</td><td class="fx">Registar o domínio no registo angolano antes do passo 2.</td><td><span class="risk-state open">em aberto</span></td></tr>
+        <tr><td>Custos da AWS</td><td class="fx">A fatura sai acima do previsto.</td><td class="fx">Os preços por hora foram confirmados na API pública da AWS; CloudWatch, Secrets Manager, S3, ECR e Route 53 continuam estimativas. Alarme no AWS Budgets.</td><td><span class="risk-state ok">mitigado</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout">
+    <p><strong>Questões em aberto, sem resposta no design:</strong></p>
+    <ul class="plain">
+      <li>Como se cria o primeiro administrador: por migration com um telemóvel definido numa variável de ambiente, ou por comando?</li>
+      <li>Uma barbearia suspensa pode voltar? Hoje só existe <code>SuspendShop</code>, sem o caminho inverso.</li>
+      <li>Consentimento no registo (termos de uso e política de privacidade, Lei n.º 22/11): falta a coluna da versão aceite e a data.</li>
+      <li>Quem perde a app autenticadora e os códigos de recuperação só é recuperado manualmente, e o processo do suporte não está definido.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="historico">
+  <div class="eyebrow">Revisões</div>
+  <h2>O que mudou em cada versão</h2>
+  <p>Todas a 27 de outubro de 2026. O número é a versão do documento publicado.</p>
+  <div class="wide">
+    <table class="grid">
+      <thead><tr><th>Versão</th><th>O que mudou</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1</td><td class="fx">Design inicial: marketplace em Angola, Java 25 e Spring Boot 4, oito módulos, 25 tabelas e 96 casos de uso.</td></tr>
+        <tr><td class="num">2</td><td class="fx">Decisões 1 a 14 trocadas: H2 nos testes, slots guardados, intervalo, fuso, antecedência e faltas por barbearia, sorteio em "qualquer um", PostGIS, avaliações nos dois sentidos, contactos mascarados, reembolsos, upload direto para o S3 e Argon2id.</td></tr>
+        <tr><td class="num">3</td><td class="fx">Nove formas de entrar, passkeys, 2FA e MFA, e confirmação em ações sensíveis.</td></tr>
+        <tr><td class="num">4–5</td><td class="fx">2FA opcional para todos, com SMS e WhatsApp também para administradores.</td></tr>
+        <tr><td class="num">6–8</td><td class="fx">Arquitetura na AWS (af-south-1, Fargate, RDS Multi-AZ, WAF e 1 NAT), com custos e desenhos à mão como os do Bazza.</td></tr>
+        <tr><td class="num">9</td><td class="fx">Visão geral, dependências entre módulos, ciclos de vida, exemplos de pedidos, riscos, revisões, filtros nos casos de uso e índice por partes. Entraram 6 casos de uso públicos que faltavam, os avisos de segurança passaram do <code>user</code> para o <code>notification</code>, os custos foram confirmados na API de preços da AWS e o exemplo da agenda foi corrigido (às 14:30 o Mário não cabe).</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
 </div>
 
 <!-- ============================ 1. MODELO ============================ -->
@@ -419,7 +492,7 @@ erDiagram
   <div id="modules" style="display:grid; gap:44px;"></div>
 </section>
 
-<section>
+<section id="agenda">
   <div class="eyebrow">Regra central</div>
   <h2>Como a agenda encontra horários livres</h2>
   <p>Exemplo: sábado na Barbearia Kilamba, que usa slots de 15 min, com um pedido de <strong>Corte + Barba (30 + 15 = 45 min, ou seja 3 slots)</strong>. Os slots existem só dentro do horário de cada barbeiro e fora das folgas, e os que têm <code>booking_id</code> estão ocupados. Um início vale se os 3 slots seguidos estiverem livres.</p>
@@ -461,7 +534,7 @@ erDiagram
       <span><i style="background:repeating-linear-gradient(-45deg, var(--code-bg) 0 4px, transparent 4px 8px);border:1px solid var(--line)"></i>sem slots (fora do horário ou folga)</span>
       <span><i style="background:color-mix(in srgb, var(--m-schedule) 18%, transparent);border:1px dashed var(--m-schedule)"></i>slots livres</span>
     </div>
-    <p class="ag-note">Com o Mário: 09:45, das 11:00 às 12:15, 14:00, 14:15 e das 16:00 às 18:15. Com a Joana: das 11:30 às 12:15 e das 14:30 às 17:15. "Qualquer um" mostra a união dos dois. Às 09:45 só o Mário cabe, por isso fica com ele. Às 14:30 cabem os dois, e o sistema sorteia um deles. Se a barbearia mudar para slots de 30 min, os mesmos 45 min ocupam 2 slots (60 min) e só começam às horas e às meias horas.</p>
+    <p class="ag-note">Com o Mário: 09:45, das 11:00 às 12:15, 14:00, 14:15 e das 16:00 às 18:15. Com a Joana: das 11:30 às 12:15 e das 14:30 às 17:15. "Qualquer um" mostra a união dos dois. Às 09:45 só o Mário cabe, e às 14:30 só a Joana (o Mário tem Tranças às 15:00). Às 11:30 cabem os dois, e o sistema sorteia um deles. Se a barbearia mudar para slots de 30 min, os mesmos 45 min ocupam 2 slots (60 min) e só começam às horas e às meias horas.</p>
   </div>
 </section>
 
@@ -510,6 +583,78 @@ UPDATE member_slots SET booking_id = :reserva
 COMMIT;                 <span class="c">-- eventos depois do commit</span></pre>
   </div>
 </section>
+
+<section id="ciclos">
+  <div class="eyebrow">Estados</div>
+  <h2>Ciclos de vida</h2>
+  <p>Os valores possíveis das colunas <code>status</code> e o que faz passar de um para o outro. Uma transição que não está no desenho é recusada com 409 ou 422.</p>
+  <div class="states">
+    <div><h3>Marcação (<code>bookings</code>)</h3><div class="diagram"><pre class="mermaid">
+stateDiagram-v2
+  [*] --> PENDING: barbearia MANUAL
+  [*] --> CONFIRMED: barbearia INSTANT
+  PENDING --> CONFIRMED: aprovada
+  PENDING --> REJECTED: recusada
+  PENDING --> EXPIRED: sem resposta (2 h ou o início)
+  PENDING --> CANCELLED: cliente ou barbearia
+  CONFIRMED --> CANCELLED: cliente no prazo, ou barbearia
+  CONFIRMED --> COMPLETED: concluída, ou 12 h depois do fim
+  CONFIRMED --> NO_SHOW: falta, 15 min depois do início
+  REJECTED --> [*]
+  EXPIRED --> [*]
+  CANCELLED --> [*]
+  COMPLETED --> [*]
+  NO_SHOW --> [*]
+</pre></div></div>
+    <div><h3>Pagamento (<code>booking_payments</code>)</h3><div class="diagram"><pre class="mermaid">
+stateDiagram-v2
+  [*] --> PENDING: marcação criada
+  PENDING --> DECLARED: cliente envia comprovativo
+  PENDING --> RECEIVED: barbearia confirma (espécie)
+  DECLARED --> RECEIVED: barbearia confirma
+  DECLARED --> DISPUTED: barbearia não recebeu
+  DISPUTED --> RECEIVED: administrador
+  DISPUTED --> PENDING: administrador
+  PENDING --> CANCELLED: marcação termina sem pagar
+  DECLARED --> REFUNDED: reembolso confirmado
+  RECEIVED --> REFUNDED: reembolso confirmado
+</pre></div></div>
+    <div><h3>Reembolso (<code>refund_requests</code>)</h3><div class="diagram"><pre class="mermaid">
+stateDiagram-v2
+  [*] --> REQUESTED: cliente pede
+  REQUESTED --> SENT: barbearia devolve com comprovativo
+  SENT --> CONFIRMED: cliente confirma, ou 7 dias
+  SENT --> DISPUTED: cliente não recebeu
+  DISPUTED --> CONFIRMED: administrador
+  DISPUTED --> REQUESTED: administrador
+  CONFIRMED --> [*]
+</pre></div></div>
+    <div><h3>Barbearia (<code>shops</code>)</h3><div class="diagram"><pre class="mermaid">
+stateDiagram-v2
+  [*] --> DRAFT: dono cria
+  DRAFT --> PENDING_REVIEW: dono submete
+  PENDING_REVIEW --> APPROVED: administrador
+  PENDING_REVIEW --> REJECTED: administrador
+  REJECTED --> PENDING_REVIEW: dono corrige
+  APPROVED --> SUSPENDED: administrador
+</pre></div></div>
+    <div><h3>Avaliação (<code>reviews</code>)</h3><div class="diagram"><pre class="mermaid">
+stateDiagram-v2
+  [*] --> PENDING: um lado avalia
+  PENDING --> PUBLISHED: os dois avaliaram, ou 14 dias
+  PUBLISHED --> HIDDEN: administrador
+</pre></div></div>
+    <div><h3>Convite (<code>shop_invites</code>)</h3><div class="diagram"><pre class="mermaid">
+stateDiagram-v2
+  [*] --> PENDING: dono convida
+  PENDING --> ACCEPTED: convidado aceita
+  PENDING --> DECLINED: convidado recusa
+  PENDING --> REVOKED: dono cancela
+  PENDING --> EXPIRED: 7 dias
+</pre></div></div>
+  </div>
+  <p>Uma barbearia <code>SUSPENDED</code> não tem caminho de volta no MVP: ver as <a href="#riscos">questões em aberto</a>.</p>
+</section>
 </div>
 
 <!-- ============================ 2. CASOS DE USO ============================ -->
@@ -518,7 +663,15 @@ COMMIT;                 <span class="c">-- eventos depois do commit</span></pre>
 
 <section>
   <p>Cada linha vira uma classe em <code>&lt;módulo&gt;/application/usecase</code>. Os marcados com <span class="kind">job</span> correm agendados (com ShedLock), os marcados com <span class="kind">evento</span> reagem a eventos de outros módulos e os marcados com <span class="kind">público</span> são chamados por outro módulo, sem endpoint. Todos os endpoints ficam sob <code>/api/v1</code>, omitido abaixo.</p>
+  <div class="filters" role="search">
+    <label for="uc-q" class="eyebrow" style="flex-basis:100%">Filtrar</label>
+    <input id="uc-q" type="search" placeholder="Nome, endpoint ou texto (ex.: reembolso, /auth, slots)" autocomplete="off">
+    <select id="uc-mod" aria-label="Módulo"><option value="">Todos os módulos</option></select>
+    <div id="uc-kinds" role="group" aria-label="Tipo" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+    <span class="filter-count" id="uc-shown" aria-live="polite"></span>
+  </div>
   <div id="usecases" style="display:grid; gap:32px;"></div>
+  <p id="uc-none" class="ag-note" hidden>Nenhum caso de uso corresponde ao filtro.</p>
 </section>
 
 <section>
@@ -553,6 +706,127 @@ sequenceDiagram
 </pre>
   </div>
 </section>
+
+<section id="exemplos">
+  <div class="eyebrow">Contrato</div>
+  <h2>Exemplos de pedidos e respostas</h2>
+  <p>O JSON real dos pedidos mais usados, para a app começar antes de a API estar pronta. Os nomes dos campos ficam definitivos no Swagger de cada passo. As horas vão em UTC, e a app mostra-as no fuso da barbearia.</p>
+  <div class="two">
+    <div>
+      <h3>Horários livres</h3>
+<pre class="code">GET /api/v1/shops/0192…kilamba/availability
+    ?data=2026-11-07&amp;servicos=0192…corte,0192…barba
+
+<span class="c">200</span>
+{
+  "date": "2026-11-07",
+  "timezone": "Africa/Luanda",
+  "slotMinutes": 15,
+  "durationMinutes": 45,
+  "slots": [
+    { "start": "09:45", "memberIds": ["0192…mario"] },
+    { "start": "11:30", "memberIds": ["0192…mario", "0192…joana"] },
+    { "start": "14:30", "memberIds": ["0192…joana"] }
+  ]
+}
+<span class="c">// resumido: a resposta traz todos os inícios do dia</span></pre>
+    </div>
+    <div>
+      <h3>Criar marcação</h3>
+<pre class="code">POST /api/v1/shops/0192…kilamba/bookings
+Idempotency-Key: 6f1c2a9e-…
+{
+  "serviceIds": ["0192…corte", "0192…barba"],
+  "memberId": null,
+  "startsAt": "2026-11-07T11:30:00+01:00",
+  "paymentMethod": "MULTICAIXA_EXPRESS",
+  "note": "Degradê baixo"
+}
+
+<span class="c">201 (barbearia MANUAL; o sorteio escolheu a Joana)</span>
+{
+  "id": "0192…",
+  "status": "PENDING",
+  "anyMember": true,
+  "shop": { "id": "0192…kilamba", "name": "Barbearia Kilamba" },
+  "member": { "id": "0192…joana", "name": "Joana" },
+  "startsAt": "2026-11-07T10:30:00Z",
+  "endsAt": "2026-11-07T11:15:00Z",
+  "services": [
+    { "name": "Corte", "durationMinutes": 30, "priceCents": 300000 },
+    { "name": "Barba", "durationMinutes": 15, "priceCents": 150000 }
+  ],
+  "totalCents": 450000,
+  "currency": "AOA",
+  "pendingExpiresAt": "2026-11-06T20:00:00Z"
+}</pre>
+    </div>
+    <div>
+      <h3>Login com 2FA</h3>
+<pre class="code">POST /api/v1/auth/login
+{ "phone": "+244923456789", "password": "…" }
+
+<span class="c">200 (2FA ligado: ainda não é sessão)</span>
+{
+  "mfaRequired": true,
+  "mfaToken": "eyJ…",
+  "methods": ["TOTP", "PASSKEY", "WHATSAPP", "RECOVERY"]
+}
+
+POST /api/v1/auth/mfa/verify
+{ "mfaToken": "eyJ…", "method": "TOTP", "code": "492817" }
+
+<span class="c">200</span>
+{ "accessToken": "eyJ…", "refreshToken": "…", "expiresIn": 900 }</pre>
+    </div>
+    <div>
+      <h3>Comprovativo de pagamento</h3>
+<pre class="code">POST /api/v1/uploads
+{ "purpose": "PAYMENT_PROOF", "contentType": "image/jpeg", "size": 284113 }
+
+<span class="c">201</span>
+{
+  "key": "users/0192…/proofs/0192….jpg",
+  "uploadUrl": "https://…s3.af-south-1.amazonaws.com/users/…?X-Amz-…",
+  "expiresAt": "2026-11-07T11:05:00Z"
+}
+
+PUT {uploadUrl}            <span class="c">// a app envia o ficheiro direto ao S3</span>
+
+POST /api/v1/bookings/0192…/payment/declare
+{ "proofKey": "users/0192…/proofs/0192….jpg" }
+
+<span class="c">200</span>
+{ "status": "DECLARED", "amountCents": 450000, "currency": "AOA" }</pre>
+    </div>
+    <div>
+      <h3>Ação sensível sem confirmação recente</h3>
+<pre class="code">PUT /api/v1/shops/0192…kilamba/payment-accounts
+
+<span class="c">401  application/problem+json</span>
+{
+  "type": "urn:okuteta:error:step-up-required",
+  "title": "Confirme que é você",
+  "status": 401,
+  "code": "STEP_UP_REQUIRED",
+  "detail": "Confirme com a senha, uma passkey ou um código para continuar"
+}</pre>
+    </div>
+    <div>
+      <h3>Horário apanhado por outra pessoa</h3>
+<pre class="code">POST /api/v1/shops/0192…kilamba/bookings
+
+<span class="c">409  application/problem+json</span>
+{
+  "type": "urn:okuteta:error:conflict",
+  "title": "Conflito",
+  "status": 409,
+  "code": "CONFLICT",
+  "detail": "Este horário acabou de ser marcado. Escolha outro"
+}</pre>
+    </div>
+  </div>
+</section>
 </div>
 
 <!-- ============================ 3. ARQUITETURA ============================ -->
@@ -561,23 +835,18 @@ sequenceDiagram
 
 <section>
   <p>É um <strong>monólito modular</strong>: um único deploy da API, com os módulos separados por pacote e a regra de dependência verificada pelo ArchUnit. A API não guarda estado, por isso uma segunda instância entra sem mudar código. Os ficheiros vão da app direto para o S3. Não há Redis nem broker no MVP: os avisos, os slots e o outbox correm como jobs no PostgreSQL.</p>
-  <div class="diagram">
-<pre class="mermaid">
-flowchart LR
-  APP[App Android e iOS] --> LB[Load balancer<br/>TLS]
-  APP -- upload direto<br/>URL pré-assinada --> S3
-  LB --> API[Okuteta API x 2<br/>Spring Boot, virtual threads]
-  API --> PG[(PostgreSQL 18<br/>+ PostGIS)]
-  API -- assina URLs e confere --> S3[(S3<br/>fotos e comprovativos)]
-  API --> IDP[Google, Facebook e Apple<br/>chaves públicas e Graph API]
-  API --> SMS[Twilio<br/>SMS e WhatsApp]
-  API --> MAIL[Brevo<br/>e-mail SMTP]
-  PG --> JOBS[Jobs na própria API<br/>push, lembretes, slots, outbox]
-  JOBS --> FCM[Firebase<br/>push]
-  JOBS --> MAIL
-  API -.-> OBS[Actuator + Micrometer<br/>métricas e logs]
-</pre>
-  </div>
+</section>
+
+<section id="visao">
+  <div class="eyebrow">Desenho</div>
+  <h2>Visão geral</h2>
+  <div class="sketch" id="visao-geral" role="img" aria-label="Visão geral: app, balanceador com WAF, API com os oito módulos, PostgreSQL, S3 e fornecedores, com os passos de uma marcação"></div>
+  <ul class="plain">
+    <li><strong>Entrada:</strong> a app só chega à API pelo balanceador, com o WAF à frente. O Spring Security confere o token, o papel na barbearia e o <code>auth_time</code> das ações sensíveis antes de qualquer módulo.</li>
+    <li><strong>Fornecedores:</strong> cada seta sai do módulo que usa o fornecedor. O <code>user</code> usa o Twilio, o Brevo e o login social; o <code>notification</code> usa o Firebase e o Brevo. Cada fornecedor tem o seu disjuntor (Resilience4j).</li>
+    <li><strong>Dados:</strong> todos os módulos gravam no PostgreSQL, cada um só nas suas tabelas. Os ficheiros vão da app direto ao S3, e a API só assina as URLs.</li>
+    <li><strong>Passos 1 a 6:</strong> um cliente marca numa barbearia com aprovação, e o aviso chega ao telemóvel do barbeiro.</li>
+  </ul>
 </section>
 
 <section class="two">
@@ -609,6 +878,23 @@ flowchart LR
       <li>E-mails e push saem depois do commit (outbox e <code>push_status</code>), nunca dentro da transação.</li>
       <li>Cada fornecedor externo fica atrás de uma porta (<code>SmsSender</code>, <code>IdentityTokenVerifier</code>, <code>PushSender</code>, <code>FileStorage</code>). Em desenvolvimento, os adapters escrevem no log e os ficheiros vão para o MinIO.</li>
     </ul>
+  </div>
+</section>
+
+<section id="dependencias">
+  <div class="eyebrow">Quem depende de quem</div>
+  <h2>Chamadas e eventos entre módulos</h2>
+  <p>Escolhe um módulo para ver o que ele chama, quem o chama, o que publica e o que ouve. As listas saem das mesmas tabelas que geram os casos de uso.</p>
+  <div id="dep-mods" role="group" aria-label="Módulo" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+  <div class="deps" id="dep-view" aria-live="polite"></div>
+  <ul class="plain">
+    <li><strong>Chamada:</strong> o módulo pergunta na hora, por uma porta da sua camada <code>application</code>, a um caso de uso <span class="kind">público</span> do outro. Um adapter em <code>infrastructure/integration</code> faz a ponte.</li>
+    <li><strong>Evento:</strong> o outro módulo publica, e este reage na mesma transação com <code>@EventListener</code>. Os e-mails são a exceção: saem pelo outbox, depois do commit.</li>
+    <li><strong>O que as tabelas mostram:</strong> ninguém depende do <code>notification</code>; o <code>user</code> não chama ninguém; e, nas chamadas, só o par <code>booking</code> ↔ <code>review</code> depende nos dois sentidos (a nota do cliente e os participantes da marcação), sempre por portas. Nesse caso, as portas entram nos métodos <code>@Bean</code>, e não no construtor, para a criação dos beans não formar um ciclo.</li>
+  </ul>
+  <div class="two">
+    <div><h3 id="dep-calls-title">Todas as chamadas</h3><div class="wide"><table class="grid" style="min-width:560px"><thead><tr><th>Quem chama</th><th>Caso de uso público</th><th>Para quê</th></tr></thead><tbody id="dep-calls"></tbody></table></div></div>
+    <div><h3>Todos os eventos</h3><div class="wide"><table class="grid" style="min-width:560px"><thead><tr><th>Evento</th><th>Publica</th><th>Ouvem</th></tr></thead><tbody id="dep-events"></tbody></table></div></div>
   </div>
 </section>
 
@@ -654,25 +940,25 @@ flowchart LR
   <div class="sketch" id="aws-teste" role="img" aria-label="AWS, teste: uma tarefa ECS na sub-rede pública, RDS numa zona, sem NAT nem WAF"></div>
 </section>
 
-<section>
+<section id="custos">
   <div class="eyebrow">Peças</div>
   <h2>Cada serviço e o seu custo</h2>
-  <p>Os custos são estimativas de ordem de grandeza para <code>af-south-1</code>, que costuma ser 15 a 25% mais cara do que as regiões dos EUA e da Europa. Antes de decidir, confirma-os no AWS Pricing Calculator. Falta somar o tráfego de saída para a internet.</p>
+  <p>Os valores marcados <span class="src">AWS</span> usam os preços por hora da API pública de preços da AWS para <code>af-south-1</code>, lidos a 27/10/2026. Os marcados <span class="src est">estimativa</span> dependem do uso e não foram confirmados. Um mês tem 730 h, e falta somar o tráfego de saída para a internet.</p>
   <div class="wide">
     <table class="grid">
       <thead><tr><th>Serviço</th><th>Para que serve</th><th>Produção</th><th>Teste</th></tr></thead>
       <tbody>
-        <tr><td class="uc">ECS Fargate</td><td>Corre a API e os jobs. Escala de 2 a 6 tarefas quando o CPU passa dos 60%.</td><td class="fx">2 tarefas, 1 vCPU e 2 GB, sub-redes privadas · ≈ 70 US$</td><td class="fx">1 tarefa, 0,5 vCPU e 1 GB, IP público · ≈ 18 US$</td></tr>
-        <tr><td class="uc">RDS PostgreSQL 18</td><td>Banco com PostGIS, cifrado com KMS e com restauração para qualquer minuto dos últimos 7 dias.</td><td class="fx">db.t4g.small Multi-AZ, 50 GB gp3 a crescer sozinho · ≈ 75 US$</td><td class="fx">db.t4g.micro numa zona, 20 GB · ≈ 18 US$</td></tr>
-        <tr><td class="uc">Application Load Balancer</td><td>Termina o TLS (ACM, TLS 1.2+), redireciona HTTP para HTTPS e confere a saúde em <code>/actuator/health</code>.</td><td class="fx">≈ 25 US$</td><td class="fx">≈ 22 US$</td></tr>
-        <tr><td class="uc">AWS WAF</td><td>Limites por IP em <code>/auth/*</code> partilhados por todas as tarefas (sem Redis), mais as regras geridas da AWS contra ataques comuns.</td><td class="fx">≈ 35 US$ (com ~30 mi pedidos/mês)</td><td class="fx">não tem</td></tr>
-        <tr><td class="uc">NAT Gateway</td><td>Saída das tarefas privadas para o Twilio, o Brevo, o Firebase e os provedores de login.</td><td class="fx">1 numa zona · ≈ 40 US$</td><td class="fx">não tem: a tarefa usa IP público</td></tr>
-        <tr><td class="uc">IPv4 públicos</td><td>A AWS cobra cada IPv4 público.</td><td class="fx">ALB e NAT · ≈ 11 US$</td><td class="fx">ALB e tarefa · ≈ 11 US$</td></tr>
-        <tr><td class="uc">S3</td><td>Bucket privado com Block Public Access, cifrado, com versões nos comprovativos e acesso da API por endpoint de gateway (grátis).</td><td class="fx">≈ 2 US$</td><td class="fx">≈ 1 US$</td></tr>
-        <tr><td class="uc">Secrets Manager</td><td>Guarda a senha do banco (rodada pelo RDS), a chave do JWT, a chave AES do TOTP, o Twilio, o Firebase e as chaves da Apple.</td><td class="fx">~10 segredos · ≈ 5 US$</td><td class="fx">≈ 5 US$</td></tr>
-        <tr><td class="uc">CloudWatch + SNS</td><td>Logs em JSON, métricas do Micrometer e alarmes por e-mail.</td><td class="fx">logs 30 dias · ≈ 15 US$</td><td class="fx">logs 7 dias · ≈ 3 US$</td></tr>
-        <tr><td class="uc">ECR e Route 53</td><td>Imagens Docker (as últimas 20) e DNS. O domínio <code>.ao</code> é registado no registo angolano e delegado para o Route 53.</td><td class="fx">≈ 3 US$</td><td class="fx">≈ 2 US$</td></tr>
-        <tr><td class="uc"><b>Total</b></td><td></td><td class="num">≈ 280 US$/mês</td><td class="num">≈ 80 US$/mês</td></tr>
+        <tr><td class="uc">ECS Fargate <span class="src">AWS</span></td><td>Corre a API e os jobs. Escala de 2 a 6 tarefas quando o CPU passa dos 60%. ARM: 0,04372 US$ por vCPU-hora e 0,0048 US$ por GB-hora.</td><td class="fx">2 tarefas, 1 vCPU e 2 GB, sub-redes privadas · ≈ 78 US$</td><td class="fx">1 tarefa, 0,5 vCPU e 1 GB, IP público · ≈ 20 US$</td></tr>
+        <tr><td class="uc">RDS PostgreSQL 18 <span class="src">AWS</span></td><td>Banco com PostGIS, cifrado com KMS e com restauração para qualquer minuto dos últimos 7 dias. db.t4g.small Multi-AZ a 0,082 US$/h e gp3 Multi-AZ a 0,302 US$ por GB-mês; db.t4g.micro numa zona a 0,021 US$/h e gp3 a 0,151.</td><td class="fx">db.t4g.small Multi-AZ, 50 GB gp3 a crescer sozinho · ≈ 75 US$ (60 da instância, 15 do disco)</td><td class="fx">db.t4g.micro numa zona, 20 GB · ≈ 18 US$</td></tr>
+        <tr><td class="uc">Application Load Balancer <span class="src">AWS</span></td><td>Termina o TLS (ACM, TLS 1.2+), redireciona HTTP para HTTPS e confere a saúde em <code>/actuator/health</code>. 0,03 US$/h, mais 0,0095 US$ por LCU-hora.</td><td class="fx">≈ 29 US$ (22 fixos, ~1 LCU em média)</td><td class="fx">≈ 23 US$</td></tr>
+        <tr><td class="uc">AWS WAF <span class="src">AWS</span></td><td>Limites por IP em <code>/auth/*</code> partilhados por todas as tarefas (sem Redis), mais as regras geridas da AWS contra ataques comuns. 5 US$ por ACL, 1 US$ por regra e 0,60 US$ por milhão de pedidos.</td><td class="fx">≈ 27 US$ (1 ACL, 4 regras, ~30 mi pedidos/mês)</td><td class="fx">não tem</td></tr>
+        <tr><td class="uc">NAT Gateway <span class="src">AWS</span></td><td>Saída das tarefas privadas para o Twilio, o Brevo, o Firebase e os provedores de login. 0,057 US$/h, mais 0,057 US$ por GB processado.</td><td class="fx">1 numa zona · ≈ 42 US$, mais o tráfego</td><td class="fx">não tem: a tarefa usa IP público</td></tr>
+        <tr><td class="uc">IPv4 públicos <span class="src">AWS</span></td><td>A AWS cobra 0,005 US$/h por cada IPv4 público.</td><td class="fx">ALB (2) e NAT (1) · ≈ 11 US$</td><td class="fx">ALB (2) e tarefa (1) · ≈ 11 US$</td></tr>
+        <tr><td class="uc">S3 <span class="src est">estimativa</span></td><td>Bucket privado com Block Public Access, cifrado, com versões nos comprovativos e acesso da API por endpoint de gateway (grátis).</td><td class="fx">≈ 2 US$</td><td class="fx">≈ 1 US$</td></tr>
+        <tr><td class="uc">Secrets Manager <span class="src est">estimativa</span></td><td>Guarda a senha do banco (rodada pelo RDS), a chave do JWT, a chave AES do TOTP, o Twilio, o Firebase e as chaves da Apple.</td><td class="fx">~10 segredos · ≈ 5 US$</td><td class="fx">≈ 5 US$</td></tr>
+        <tr><td class="uc">CloudWatch + SNS <span class="src est">estimativa</span></td><td>Logs em JSON, métricas do Micrometer e alarmes por e-mail.</td><td class="fx">logs 30 dias · ≈ 15 US$</td><td class="fx">logs 7 dias · ≈ 3 US$</td></tr>
+        <tr><td class="uc">ECR e Route 53 <span class="src est">estimativa</span></td><td>Imagens Docker (as últimas 20) e DNS. O domínio <code>.ao</code> é registado no registo angolano e delegado para o Route 53.</td><td class="fx">≈ 3 US$</td><td class="fx">≈ 2 US$</td></tr>
+        <tr><td class="uc"><b>Total</b></td><td></td><td class="num">≈ 290 US$/mês</td><td class="num">≈ 85 US$/mês</td></tr>
       </tbody>
     </table>
   </div>
@@ -684,8 +970,8 @@ flowchart LR
     <h3>Rede e acessos</h3>
     <ul>
       <li>O ALB aceita 443 da internet; as tarefas só aceitam tráfego do ALB; o RDS só aceita 5432 das tarefas.</li>
-      <li>O papel da tarefa só lê os seus segredos e só escreve no bucket da aplicação.</li>
-      <li><code>okuteta.ao</code> aponta para o mesmo ALB, mas só serve <code>/.well-known/*</code> (passkeys e links na app) e a página de reserva dos links.</li>
+      <li>O papel da tarefa só lê os seus segredos e só acede ao bucket da aplicação, para assinar as URLs e conferir os ficheiros enviados.</li>
+      <li><code>okuteta.ao</code> aponta para o mesmo ALB, mas só serve <code>/.well-known/*</code> (passkeys e links na app) e a página que abre um link quando a app não está instalada.</li>
       <li>O GitHub Actions entra por OIDC com um papel que só pode enviar imagens para o ECR e atualizar o serviço.</li>
     </ul>
   </div>
@@ -729,9 +1015,9 @@ flowchart LR
       <tbody>
         <tr><td>Região</td><td><code>af-south-1</code> (Cidade do Cabo)</td><td><code>eu-west-1</code> (Irlanda)</td><td class="fx">A Irlanda é 15 a 25% mais barata e tem todos os serviços, mas fica mais longe de Luanda. Nenhuma região é em Angola, e a Lei 22/11 pede que a transferência de dados para fora do país passe pela APD em qualquer dos casos.</td></tr>
         <tr><td>Computação</td><td>ECS Fargate</td><td>EC2 com Docker</td><td class="fx">Uma EC2 é mais barata, mas obriga a gerir o sistema operativo, os patches e a troca de máquinas.</td></tr>
-        <tr><td>Saída para a internet</td><td>1 NAT Gateway</td><td>2 NAT (uma por zona), ou tarefas em sub-redes públicas sem NAT</td><td class="fx">Com 2 NAT, a saída sobrevive à queda de uma zona (+≈ 40 US$). Sem NAT poupa ≈ 40 US$, e as tarefas ficam com IP público, mas fechadas pelo security group.</td></tr>
+        <tr><td>Saída para a internet</td><td>1 NAT Gateway</td><td>2 NAT (uma por zona), ou tarefas em sub-redes públicas sem NAT</td><td class="fx">Com 2 NAT, a saída sobrevive à queda de uma zona (+≈ 42 US$). Sem NAT poupa ≈ 42 US$, e as tarefas ficam com IP público, mas fechadas pelo security group.</td></tr>
         <tr><td>WAF</td><td>No MVP</td><td>Só limites na aplicação</td><td class="fx">Sem o WAF, os limites por IP só funcionam com uma tarefa, ou com Redis (≈ 25 US$).</td></tr>
-        <tr><td>Banco</td><td>RDS Multi-AZ db.t4g.small</td><td>Uma só zona, ou Aurora Serverless v2</td><td class="fx">Numa só zona poupa ≈ 35 US$, mas a queda de uma zona deixa a API parada até restaurar. Neste volume, o Aurora custa mais.</td></tr>
+        <tr><td>Banco</td><td>RDS Multi-AZ db.t4g.small</td><td>Uma só zona, ou Aurora Serverless v2</td><td class="fx">Numa só zona poupa ≈ 37 US$, mas a queda de uma zona deixa a API parada até restaurar. Neste volume, o Aurora custa mais.</td></tr>
         <tr><td>Infraestrutura como código</td><td>Terraform, como no Bazza</td><td>AWS CDK</td><td class="fx">O CDK escreve-se em Java ou TypeScript. O Terraform já está provado no Bazza.</td></tr>
       </tbody>
     </table>
@@ -742,8 +1028,8 @@ flowchart LR
 │   ├── database/    <span class="c">RDS, parâmetros, segredo</span>
 │   ├── service/     <span class="c">ECR, ECS, ALB, WAF, alarmes</span>
 │   └── storage/     <span class="c">bucket, ciclo de vida</span>
-├── teste/           <span class="c">≈ 80 US$/mês</span>
-└── producao/        <span class="c">≈ 280 US$/mês</span></pre>
+├── teste/           <span class="c">≈ 85 US$/mês</span>
+└── producao/        <span class="c">≈ 290 US$/mês</span></pre>
 </section>
 </div>
 
@@ -766,7 +1052,7 @@ flowchart LR
         <tr><td>Slots guardados</td><td>12.000 barbeiros × 30 dias × 40 slots de 15 min</td><td class="num">~15 mi linhas</td></tr>
         <tr><td>Geração diária de slots</td><td>um dia novo por barbeiro</td><td class="num">~500 mil inserts/dia</td></tr>
         <tr><td>Pedidos na API</td><td>~30 por marcação (busca, perfis, agenda)</td><td class="num">pico ~120/s</td></tr>
-        <tr><td>Instâncias</td><td>~250 req/s por instância de 2 vCPU</td><td class="num">1, mais 1 para deploy sem parar</td></tr>
+        <tr><td>Instâncias</td><td>~150 req/s por tarefa de 1 vCPU (a medir com k6)</td><td class="num">1, mais 1 para deploy sem parar</td></tr>
         <tr><td>Dados no primeiro ano</td><td>13 mi marcações × ~1,5 KB, mais os slots</td><td class="num">&lt; 35 GB</td></tr>
       </tbody>
     </table>
@@ -874,6 +1160,7 @@ flowchart LR
         <li>Modelo de receita: assinatura da barbearia ou comissão, sobre o registo de pagamentos que já existe.</li>
         <li>Denúncias e moderação.</li>
         <li>Exportação dos dados pessoais.</li>
+        <li>Aprovar o segundo fator com um toque na app (push).</li>
       </ul>
     </div>
     <div class="phase">
@@ -1105,7 +1392,8 @@ const USECASES = {
     ["VerifyEmail","","POST /me/email/verify","Utilizador","Confirma o e-mail com um código."],
     ["ChangePassword","","PUT /me/password","Utilizador, com confirmação","Define ou troca a senha."],
     ["DeleteAccount","","DELETE /me","Utilizador, com confirmação","Anonimiza a conta e publica `UserAccountDeleted`. Um dono com barbearia ativa tem de a fechar primeiro."],
-    ["SecurityEventListener","evento","LoginFromNewDevice, MfaChanged, RecoveryCodeUsed","Sistema","Envia um aviso na app e um e-mail."],
+    ["GetAccountStatus","público","—","booking, shop","Devolve o estado da conta e se o telemóvel está verificado, para marcar e para criar barbearia."],
+    ["FindUserByPhone","público","—","shop","Devolve a conta com esse telemóvel verificado, se existir, para avisar quem é convidado."],
     ["PurgeExpiredChallenges","job","diário","Sistema","Apaga os códigos e os desafios WebAuthn expirados há mais de 1 dia."],
   ],
   shop: [
@@ -1131,6 +1419,9 @@ const USECASES = {
     ["UpdateMember","","PATCH /shops/{id}/members/{memberId}","Dono ou o próprio","Altera o nome de apresentação, a bio e se atende marcações."],
     ["SetMemberServices","","PUT /shops/{id}/members/{memberId}/services","Dono","Define os serviços que este barbeiro faz."],
     ["RemoveMember","","DELETE /shops/{id}/members/{memberId}","Dono, ou o próprio para sair","Passa a REMOVED. `MemberRemoved` cancela as marcações futuras e apaga os slots. O dono não sai."],
+    ["GetShopBookingRules","público","—","booking, schedule","Devolve o estado, o modo de confirmação, o prazo de cancelamento, o intervalo, o fuso, a antecedência, a regra de faltas e o horário da barbearia."],
+    ["QuoteServices","público","—","booking, schedule","Devolve o preço e a duração dos serviços pedidos e os barbeiros ativos que fazem todos."],
+    ["GetShopRole","público","—","booking, schedule, payment, messaging","Devolve o papel de uma pessoa na barbearia (OWNER, BARBER ou nenhum), para autorizar os pedidos."],
     ["ExpireInvites","job","diário","Sistema","Convites PENDING com mais de 7 dias passam a EXPIRED."],
     ["OnUserAccountDeleted","evento","UserAccountDeleted","Sistema","Remove a pessoa das barbearias onde é barbeiro."],
   ],
@@ -1141,7 +1432,7 @@ const USECASES = {
     ["ListTimeOff","","GET /members/{id}/time-off?de=&ate=","Barbeiro ou dono","Lista as folgas no período."],
     ["GetAvailability","","GET /shops/{id}/availability?data=&servicos=&barbeiro=","Visitante","Lê os slots livres do dia e devolve os inícios com slots seguidos suficientes para a soma das durações, respeitando a antecedência mínima. Sem barbeiro, mostra a união dos que fazem os serviços."],
     ["ReserveSlots","público","—","booking","Ocupa os slots do intervalo com `UPDATE … WHERE booking_id IS NULL` e confere o número de linhas. Se faltar alguma, a marcação falha com 409."],
-    ["GenerateSlots","job","diário","Sistema","Gera os slots do dia que entra na janela (`max_advance_days`) para cada barbeiro, no fuso da barbearia."],
+    ["GenerateSlots","job","diário","Sistema","Gera, para cada barbeiro e no fuso da barbearia, os slots de todos os dias da janela (`max_advance_days`) que ainda não os têm. Uma corrida perdida corrige-se na seguinte."],
     ["PurgePastSlots","job","diário","Sistema","Apaga os slots com mais de 7 dias."],
     ["OnBookingEnded","evento","BookingCancelled, BookingRejected, BookingExpired","Sistema","Liberta os slots (`booking_id = NULL`)."],
     ["OnShopScheduleChanged","evento","ShopScheduleChanged","Sistema","Regenera os slots livres de todos os barbeiros da barbearia com o novo intervalo ou fuso, sem tocar nos ocupados."],
@@ -1160,7 +1451,8 @@ const USECASES = {
     ["MarkNoShow","","POST /bookings/{id}/no-show","Dono ou barbeiro atribuído","15 min depois do início, passa a NO_SHOW e conta para o limite de faltas dessa barbearia."],
     ["ExpirePendingBookings","job","a cada minuto","Sistema","Marcações PENDING sem resposta até `pending_expires_at` passam a EXPIRED."],
     ["AutoCompleteBookings","job","de hora em hora","Sistema","Marcações CONFIRMED que acabaram há mais de 12 h passam a COMPLETED."],
-    ["GetBookingParticipants","público","—","review, payment, messaging","Devolve o cliente, o barbeiro, a barbearia, o estado e a data de conclusão."],
+    ["GetBookingParticipants","público","—","review, payment","Devolve o cliente, o barbeiro, a barbearia, o estado e a data de conclusão."],
+    ["HasBookingWithShop","público","—","messaging","Diz se o cliente tem ou teve uma marcação nessa barbearia."],
     ["OnMemberRemoved","evento","MemberRemoved","Sistema","Cancela (SYSTEM) as marcações futuras do barbeiro."],
     ["OnShopSuspended","evento","ShopSuspended","Sistema","Cancela as marcações futuras da barbearia."],
     ["OnUserAccountDeleted","evento","UserAccountDeleted","Sistema","Cancela as marcações futuras do cliente."],
@@ -1183,7 +1475,7 @@ const USECASES = {
     ["ListNotifications","","GET /me/notifications","Utilizador","Mostra a caixa da app, paginada."],
     ["MarkNotificationRead","","POST /me/notifications/{id}/read","Utilizador","Marca um aviso como lido."],
     ["MarkAllRead","","POST /me/notifications/read-all","Utilizador","Marca todos os avisos como lidos."],
-    ["NotificationEventListener","evento","vários","Sistema","Grava o aviso na transação do evento: marcação pedida, confirmada, recusada, cancelada (com convite para pedir o reembolso, se foi paga), expirada ou concluída (convite para avaliar), avaliações publicadas, convite de barbeiro, barbearia aprovada ou recusada, pagamento declarado, reembolso pedido ou enviado e mensagem nova."],
+    ["NotificationEventListener","evento","vários","Sistema","Grava o aviso na transação do evento: marcação pedida, confirmada, recusada, cancelada (com convite para pedir o reembolso, se foi paga), expirada ou concluída (convite para avaliar), avaliações publicadas, convite de barbeiro, barbearia aprovada ou recusada, pagamento declarado, reembolso pedido ou enviado, mensagem nova e avisos de segurança (login num aparelho novo, 2FA ligado ou desligado, código de recuperação usado), estes também por e-mail."],
     ["DeliverPush","job","a cada 5 s","Sistema","Envia por FCM com `FOR UPDATE SKIP LOCKED`, até 5 tentativas. Um token inválido é apagado."],
     ["SendReminders","job","a cada 5 min","Sistema","Envia lembretes 24 h e 1 h antes da marcação; a `dedupe_key` impede repetições."],
     ["PurgeOldNotifications","job","diário","Sistema","Apaga os avisos com mais de 6 meses."],
@@ -1248,13 +1540,98 @@ let total = 0;
 document.getElementById("usecases").innerHTML = MODULES.map(m => {
   const rows = USECASES[m.id] || [];
   total += rows.length;
-  return `<div class="uc-module" style="--c:${color(m.id)}">
-    <h3><i class="sq"></i>${esc(m.name)} <span class="pkg">${rows.length} casos de uso</span></h3>
+  return `<div class="uc-module" data-mod="${m.id}" style="--c:${color(m.id)}">
+    <h3><i class="sq"></i>${esc(m.name)} <span class="pkg"><span class="uc-n">${rows.length}</span> casos de uso</span></h3>
     <div class="wide mod"><table class="grid"><thead><tr><th>Caso de uso</th><th>Endpoint</th><th>Quem</th><th>O que faz</th></tr></thead><tbody>
-    ${rows.map(([uc, kind, ep, who, fx]) => `<tr><td class="uc">${esc(uc)}${kind ? `<span class="kind">${kind}</span>` : ""}</td><td class="ep">${esc(ep)}</td><td>${esc(who)}</td><td class="fx">${fmt(fx)}</td></tr>`).join("")}
+    ${rows.map(([uc, kind, ep, who, fx]) => `<tr data-kind="${kind || "endpoint"}" data-text="${esc([uc, ep, who, fx].join(" ").toLowerCase())}"><td class="uc">${esc(uc)}${kind ? `<span class="kind">${kind}</span>` : ""}</td><td class="ep">${esc(ep)}</td><td>${esc(who)}</td><td class="fx">${fmt(fx)}</td></tr>`).join("")}
     </tbody></table></div></div>`;
 }).join("");
 document.getElementById("uc-count").textContent = total;
+
+// Filtros dos casos de uso: texto, módulo e tipo
+const ucQ = document.getElementById("uc-q"), ucMod = document.getElementById("uc-mod"), ucKinds = document.getElementById("uc-kinds");
+ucMod.insertAdjacentHTML("beforeend", MODULES.map(m => `<option value="${m.id}">${esc(m.name)} (${m.id})</option>`).join(""));
+let ucKind = "";
+ucKinds.innerHTML = [["", "Todos"], ["endpoint", "endpoint"], ["job", "job"], ["evento", "evento"], ["público", "público"]]
+  .map(([v, l]) => `<button type="button" class="chip" data-kind="${v}" aria-pressed="${v === ""}">${l}</button>`).join("");
+function filterUseCases() {
+  const q = ucQ.value.trim().toLowerCase(), mod = ucMod.value;
+  let shown = 0;
+  document.querySelectorAll(".uc-module").forEach(g => {
+    let n = 0;
+    g.querySelectorAll("tbody tr").forEach(tr => {
+      const ok = (!mod || g.dataset.mod === mod) && (!ucKind || tr.dataset.kind === ucKind) && (!q || tr.dataset.text.includes(q));
+      tr.hidden = !ok;
+      if (ok) n++;
+    });
+    g.hidden = n === 0;
+    g.querySelector(".uc-n").textContent = n;
+    shown += n;
+  });
+  document.getElementById("uc-shown").textContent = `${shown} de ${total}`;
+  document.getElementById("uc-none").hidden = shown > 0;
+}
+ucQ.addEventListener("input", filterUseCases);
+ucMod.addEventListener("change", filterUseCases);
+ucKinds.addEventListener("click", e => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  ucKind = b.dataset.kind;
+  ucKinds.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
+  filterUseCases();
+});
+filterUseCases();
+
+// Dependências entre módulos: chamadas a casos de uso públicos e eventos
+const CALLS = [
+  ["booking", "shop", "QuoteServices", "preço, duração e quem faz os serviços"],
+  ["booking", "shop", "GetShopBookingRules", "modo de confirmação, prazos e faltas"],
+  ["booking", "shop", "GetShopRole", "quem aprova, cancela e vê a agenda"],
+  ["booking", "schedule", "ReserveSlots", "ocupar os slots da marcação"],
+  ["booking", "review", "GetCustomerRating", "nota do cliente para a barbearia"],
+  ["booking", "user", "GetAccountStatus", "telemóvel verificado para marcar"],
+  ["schedule", "shop", "GetShopBookingRules", "horário, intervalo, fuso e antecedência"],
+  ["schedule", "shop", "QuoteServices", "quem faz os serviços pedidos"],
+  ["schedule", "shop", "GetShopRole", "quem pode mudar a agenda de um barbeiro"],
+  ["shop", "user", "GetAccountStatus", "telemóvel verificado para criar barbearia"],
+  ["shop", "user", "FindUserByPhone", "avisar quem já tem conta quando é convidado"],
+  ["review", "booking", "GetBookingParticipants", "quem pode avaliar e até quando"],
+  ["payment", "booking", "GetBookingParticipants", "quem declara, confirma e pede reembolso"],
+  ["payment", "shop", "GetShopRole", "dono e barbeiros da barbearia"],
+  ["messaging", "booking", "HasBookingWithShop", "só quem tem marcação abre conversa"],
+  ["messaging", "shop", "GetShopRole", "quem responde pela barbearia"],
+];
+const EVENTS = [
+  ["UserAccountDeleted", "user", ["shop", "booking", "review"]],
+  ["LoginFromNewDevice, MfaChanged, RecoveryCodeUsed", "user", ["notification"]],
+  ["ShopApproved, ShopRejected, InviteCreated", "shop", ["notification"]],
+  ["ShopSuspended", "shop", ["booking", "notification"]],
+  ["ShopScheduleChanged", "shop", ["schedule"]],
+  ["MemberRemoved", "shop", ["booking", "schedule"]],
+  ["BookingCreated", "booking", ["payment", "notification"]],
+  ["BookingConfirmed, BookingCompleted, BookingNoShow", "booking", ["notification"]],
+  ["BookingRejected, BookingCancelled, BookingExpired", "booking", ["schedule", "payment", "notification"]],
+  ["ReviewPublished, ReviewHidden", "review", ["notification"]],
+  ["PaymentDeclared, RefundRequested, RefundSent", "payment", ["notification"]],
+  ["MessageSent", "messaging", ["notification"]],
+];
+const modTag = id => `<span style="--c:${color(id)}; white-space:nowrap"><i class="sq"></i> <code>${id}</code></span>`;
+document.getElementById("dep-calls").innerHTML = CALLS.map(([f, t, uc, why]) => `<tr><td>${modTag(f)}</td><td class="uc">${t}.${uc}</td><td class="fx">${esc(why)}</td></tr>`).join("");
+document.getElementById("dep-events").innerHTML = EVENTS.map(([ev, pub, subs]) => `<tr><td class="uc" style="white-space:normal">${esc(ev)}</td><td>${modTag(pub)}</td><td>${subs.map(modTag).join(" ")}</td></tr>`).join("");
+const depMods = document.getElementById("dep-mods"), depView = document.getElementById("dep-view");
+depMods.innerHTML = MODULES.filter(m => m.id !== "shared").map(m => `<button type="button" class="mod-btn" data-mod="${m.id}" style="--c:${color(m.id)}" aria-pressed="false"><i class="sq"></i>${m.id}</button>`).join("");
+function showDeps(id) {
+  depMods.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.mod === id));
+  const list = items => items.length ? `<ul>${items.join("")}</ul>` : `<p class="empty">Nenhuma.</p>`;
+  depView.innerHTML = [
+    ["Chama", CALLS.filter(c => c[0] === id).map(([, t, uc, why]) => `<li><code>${t}.${uc}</code>: ${esc(why)}</li>`)],
+    ["É chamado por", CALLS.filter(c => c[1] === id).map(([f, , uc, why]) => `<li>${modTag(f)} → <code>${uc}</code></li>`)],
+    ["Publica", EVENTS.filter(e => e[1] === id).map(([ev, , subs]) => `<li><code>${esc(ev)}</code> → ${subs.map(s => `<code>${s}</code>`).join(", ")}</li>`)],
+    ["Ouve", EVENTS.filter(e => e[2].includes(id)).map(([ev, pub]) => `<li><code>${esc(ev)}</code> de <code>${pub}</code></li>`)],
+  ].map(([h, items]) => `<div class="card" style="--c:${color(id)}"><h3>${h}</h3>${list(items)}</div>`).join("");
+}
+depMods.addEventListener("click", e => { const b = e.target.closest("button"); if (b) showDeps(b.dataset.mod); });
+showDeps("booking");
 
 // Desenhos da AWS: caixas, cilindros, áreas e setas num viewBox de 2000 × 1345, com o rough.js quando carrega
 const FILL = { orange: "--d-orange", pink: "--d-pink", purple: "--d-purple", blue: "--d-blue", green: "--d-green", grey: "--d-grey", white: "--d-white" };
@@ -1313,6 +1690,10 @@ function drawSketch(id, items) {
       const p = it.arrow, [x1, y1] = p.at(-2), [x2, y2] = p.at(-1), a = Math.atan2(y2 - y1, x2 - x1);
       path("M" + p.map(q => q.join(" ")).join("L"), { dash: it.dash, width: 2 });
       path(`M${x2 - 17 * Math.cos(a - 0.45)} ${y2 - 17 * Math.sin(a - 0.45)}L${x2} ${y2}L${x2 - 17 * Math.cos(a + 0.45)} ${y2 - 17 * Math.sin(a + 0.45)}`, { width: 2 });
+    } else if (it.dot) {
+      const [x, y, n] = it.dot;
+      path(`M${x - 19} ${y}A19 19 0 1 1 ${x + 19} ${y}A19 19 0 1 1 ${x - 19} ${y}Z`, { fill: "pink", width: 2 });
+      text(x, y + 8, n, 24, "m", "middle");
     } else if (it.text) {
       text(...it.text);
     }
@@ -1361,8 +1742,57 @@ const awsBase = t => [
   { text: [1000, 1332, "publica a imagem no ECR e atualiza o serviço ECS, com credenciais temporárias", 17, "s", "middle"] },
 ];
 
+const mod = (x, y, fill, title, sub) => ({ box: [x, y, 400, 108], fill, title, sub });
+drawSketch("visao-geral", [
+  { text: [50, 66, "Okuteta: visão geral", 46, "h"] },
+  { text: [52, 104, "a API, os dados e os fornecedores · passos 1 a 6: uma marcação com aprovação", 20] },
+  { text: [52, 205, "1  POST /shops/{id}/bookings pela app", 19] },
+  { text: [52, 240, "2  booking pede ao shop preços e quem faz", 19] },
+  { text: [52, 275, "3  schedule ocupa os slots (UPDATE condicional)", 19] },
+  { text: [52, 310, "4  grava a marcação e o evento, numa transação", 19] },
+  { text: [52, 345, "5  BookingCreated: notification grava o aviso", 19] },
+  { text: [52, 380, "6  o job do push envia-o pelo Firebase", 19] },
+  { box: [50, 520, 220, 150], fill: "orange", title: "App Okuteta", sub: "cliente, barbeiro\ne dono" },
+  { box: [330, 545, 230, 100], fill: "pink", title: "ALB + WAF", sub: "TLS e limites por IP" },
+  { area: [620, 130, 900, 820], r: 22, width: 2.4 },
+  { text: [645, 168, "Okuteta API · Spring Boot · 2 a 6 tarefas", 22, "m"] },
+  { box: [650, 185, 840, 70], fill: "grey", title: "Spring Security", sub: "JWT, papel na barbearia, step-up" },
+  mod(650, 290, "orange", "shop", "barbearias, serviços, equipa, busca"),
+  mod(1090, 290, "blue", "user", "contas, 9 formas de entrar, 2FA"),
+  mod(650, 420, "green", "schedule", "horários, folgas, slots"),
+  mod(1090, 420, "blue", "notification", "caixa da app, push, lembretes"),
+  mod(650, 550, "purple", "booking", "marcações sem sobreposição"),
+  mod(1090, 550, "green", "payment", "pagamentos e reembolsos"),
+  mod(650, 680, "pink", "review", "avaliações duplo-cegas"),
+  mod(1090, 680, "grey", "messaging", "chat, contactos escondidos"),
+  { box: [650, 830, 840, 90], fill: "grey", title: "shared", sub: "outbox, uploads, erros, jobs com ShedLock" },
+  { arrow: [[270, 595], [328, 595]] }, { dot: [298, 560, "1"] },
+  { arrow: [[560, 595], [648, 605]] },
+  { arrow: [[650, 575], [632, 575], [632, 345], [648, 345]] }, { dot: [632, 460, "2"] },
+  { arrow: [[850, 550], [850, 530]] }, { dot: [900, 540, "3"] },
+  { arrow: [[1050, 605], [1070, 605], [1070, 475], [1088, 475]] }, { dot: [1070, 540, "5"] },
+  { box: [1600, 230, 350, 80], fill: "grey", title: "Twilio", sub: "SMS e WhatsApp" },
+  { box: [1600, 335, 350, 80], fill: "grey", title: "Google, Facebook, Apple", sub: "login social" },
+  { box: [1600, 450, 350, 80], fill: "grey", title: "Brevo", sub: "e-mail" },
+  { box: [1600, 600, 350, 80], fill: "grey", title: "Firebase", sub: "push no Android e no iOS" },
+  { box: [1600, 860, 350, 100], fill: "white", title: "Telemóvel do barbeiro", sub: "\"Novo pedido: Corte + Barba\"" },
+  { arrow: [[1490, 310], [1540, 310], [1540, 270], [1598, 270]] },
+  { arrow: [[1490, 375], [1598, 375]] },
+  { arrow: [[1490, 392], [1525, 392], [1525, 478], [1598, 478]] },
+  { arrow: [[1490, 500], [1598, 500]] },
+  { arrow: [[1490, 520], [1560, 520], [1560, 640], [1598, 640]] }, { dot: [1560, 590, "6"] },
+  { arrow: [[1775, 680], [1775, 858]] },
+  { arrow: [[880, 950], [880, 1086]] }, { dot: [920, 1020, "4"] },
+  { cyl: [700, 1090, 360, 200], fill: "blue", title: "PostgreSQL 18 + PostGIS", sub: "cada módulo só nas\nsuas tabelas" },
+  { arrow: [[1290, 950], [1290, 1128]] },
+  { text: [1305, 1045, "assina URLs e confere", 17] },
+  { box: [1130, 1130, 360, 110], fill: "orange", title: "S3", sub: "fotos e comprovativos, privado" },
+  { arrow: [[160, 670], [160, 1318], [1310, 1318], [1310, 1244]], dash: [10, 8] },
+  { text: [300, 1306, "upload direto, URL pré-assinada", 17] },
+]);
+
 drawSketch("aws-producao", [
-  ...awsBase({ title: "Okuteta na AWS: produção", sub: "proposta · infra/producao · ≈ 280 US$/mês",
+  ...awsBase({ title: "Okuteta na AWS: produção", sub: "proposta · infra/producao · ≈ 290 US$/mês",
     cw: "logs JSON 30 dias, alarmes por SNS", budget: "alarme por e-mail a 80% e 100%", ecr: "imagens ARM64 da API (guarda 20)", gh: "deploy manual,\nimagem já testada" }),
   { box: [422, 315, 925, 80], fill: "pink", title: "Application Load Balancer · HTTPS (ACM) + AWS WAF", sub: "aceita 443 da Internet; o WAF limita pedidos por IP em /auth" },
   { box: [385, 448, 255, 125], fill: "grey", title: "NAT Gateway", sub: "saída das tarefas\nprivadas" },
@@ -1388,7 +1818,7 @@ drawSketch("aws-producao", [
 ]);
 
 drawSketch("aws-teste", [
-  ...awsBase({ title: "Okuteta na AWS: teste", sub: "o que o terraform apply em infra/teste cria · ≈ 80 US$/mês",
+  ...awsBase({ title: "Okuteta na AWS: teste", sub: "o que o terraform apply em infra/teste cria · ≈ 85 US$/mês",
     cw: "logs JSON, 7 dias", budget: "alarme por e-mail (100 US$)", ecr: "imagens da API (guarda 20)", gh: "deploy-teste,\nsó da main" }),
   { box: [422, 315, 925, 80], fill: "pink", title: "Application Load Balancer · HTTPS (ACM)", sub: "aceita 443 da Internet; sem WAF" },
   { arrow: [[615, 395], [615, 446]] },
