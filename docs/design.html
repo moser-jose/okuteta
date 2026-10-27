@@ -1,0 +1,1405 @@
+<title>Okuteta System Design</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Public+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&family=Architects+Daughter&family=Kalam:wght@300;400&display=swap">
+<style>
+/* Layout: documento técnico em coluna única, aberto por uma faixa de poste de barbeiro; cada módulo tem a sua cor, marcada num quadrado ao lado do nome */
+:root {
+  --bg: #f3f4f7;
+  --surface: #ffffff;
+  --fg: #151a26;
+  --muted: #586074;
+  --line: #d8dce5;
+  --accent: #b3122b;
+  --accent-fg: #ffffff;
+  --navy: #1d2e5c;
+  --code-bg: #eceef4;
+  --warn: #9a5b00;
+  --pole-white: #ffffff;
+  --m-user: #2f5fa7;
+  --m-shop: #8a5a2b;
+  --m-schedule: #2a7a6b;
+  --m-booking: #c0560a;
+  --m-review: #6b4fb3;
+  --m-notification: #a8366b;
+  --m-payment: #127a86;
+  --m-messaging: #5d6873;
+  --m-shared: #3b4250;
+  --d-paper: #fbfbfa; --d-ink: #1e1e1e; --d-muted: #4a4f57;
+  --d-orange: #ffd8a8; --d-pink: #ffc9c9; --d-purple: #d0bfff; --d-blue: #a5d8ff; --d-green: #b2f2bb; --d-grey: #e9ecef; --d-white: #ffffff;
+  --font-display: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --font-body: "Public Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10131b; --surface: #181c27; --fg: #e5e8f0; --muted: #9aa2b5; --line: #2a3040;
+    --accent: #ef5a6f; --accent-fg: #14070a; --navy: #8fa6e8; --code-bg: #1f2431; --warn: #e0a54a;
+    --pole-white: #d9dde8;
+    --m-user: #7ea6e6; --m-shop: #d1a273; --m-schedule: #5cc4ad; --m-booking: #f0954f;
+    --m-review: #a990ec; --m-notification: #e27aa6; --m-payment: #4cc3cc; --m-messaging: #a3adb8; --m-shared: #b6bdcc;
+    --d-paper: #17181c; --d-ink: #e4e4e8; --d-muted: #a3a8b3;
+    --d-orange: #6b4720; --d-pink: #6b2f35; --d-purple: #44386e; --d-blue: #1f4d6b; --d-green: #275a33; --d-grey: #2c3038; --d-white: #17181c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10131b; --surface: #181c27; --fg: #e5e8f0; --muted: #9aa2b5; --line: #2a3040;
+  --accent: #ef5a6f; --accent-fg: #14070a; --navy: #8fa6e8; --code-bg: #1f2431; --warn: #e0a54a;
+  --pole-white: #d9dde8;
+  --m-user: #7ea6e6; --m-shop: #d1a273; --m-schedule: #5cc4ad; --m-booking: #f0954f;
+  --m-review: #a990ec; --m-notification: #e27aa6; --m-payment: #4cc3cc; --m-messaging: #a3adb8; --m-shared: #b6bdcc;
+    --d-paper: #17181c; --d-ink: #e4e4e8; --d-muted: #a3a8b3;
+    --d-orange: #6b4720; --d-pink: #6b2f35; --d-purple: #44386e; --d-blue: #1f4d6b; --d-green: #275a33; --d-grey: #2c3038; --d-white: #17181c;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 16px; line-height: 1.55; }
+.pole { height: 14px; background: repeating-linear-gradient(-45deg, var(--accent) 0 14px, var(--pole-white) 14px 22px, var(--navy) 22px 36px, var(--pole-white) 36px 44px); }
+.wrap { max-width: 1100px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 40px 80px; display: grid; gap: 64px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.05; letter-spacing: 0.01em; }
+h1 { font-size: clamp(40px, 7vw, 68px); font-weight: 900; text-transform: uppercase; }
+h2 { font-size: 30px; font-weight: 800; }
+h3 { font-size: 21px; font-weight: 800; }
+p { margin: 0; max-width: 70ch; }
+code { font-family: var(--font-mono); font-size: 0.86em; }
+p code, li code, td code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+a { color: var(--accent); }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.eyebrow { font-family: var(--font-body); text-transform: uppercase; letter-spacing: 0.09em; font-size: 12px; font-weight: 700; color: var(--muted); }
+section { display: grid; gap: 20px; min-width: 0; scroll-margin-top: 16px; }
+.part { display: grid; gap: 48px; }
+.part-title { display: flex; align-items: baseline; gap: 14px; border-bottom: 3px solid var(--fg); padding-bottom: 8px; scroll-margin-top: 16px; }
+.part-title .num { font-family: var(--font-display); font-weight: 900; font-size: 38px; color: var(--accent); line-height: 1; }
+.part-title h2 { font-size: 38px; text-transform: uppercase; }
+.lede { font-size: 18px; color: var(--muted); }
+
+header { display: grid; gap: 18px; }
+.sign { font-family: var(--font-mono); font-size: 13px; color: var(--muted); }
+.toc { display: flex; flex-wrap: wrap; gap: 8px; }
+.toc a { text-decoration: none; color: var(--fg); border: 1px solid var(--line); background: var(--surface); border-radius: 4px; padding: 6px 12px; font-size: 14px; display: inline-flex; gap: 8px; align-items: baseline; }
+.toc a b { font-family: var(--font-display); color: var(--accent); font-size: 16px; }
+.toc a:hover { border-color: var(--accent); }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 14px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sq { width: 11px; height: 11px; background: var(--c); flex: none; display: inline-block; }
+
+.status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.status-grid div { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; display: grid; gap: 2px; align-content: start; }
+.status-grid b { font-family: var(--font-display); font-size: 36px; font-weight: 900; font-variant-numeric: tabular-nums; line-height: 1; }
+.status-grid span { font-size: 14px; color: var(--muted); }
+
+.diagram { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 16px; overflow-x: auto; }
+.diagram pre.mermaid { margin: 0; min-width: 760px; display: flex; justify-content: center; }
+
+.module-nav { display: flex; flex-wrap: wrap; gap: 8px; }
+.module-nav a { display: inline-flex; align-items: center; gap: 7px; text-decoration: none; color: var(--fg); border: 1px solid var(--line); background: var(--surface); padding: 4px 10px; border-radius: 4px; font-size: 14px; }
+.module-nav a:hover, .module-nav a:focus-visible { border-color: var(--c); outline: none; }
+.module { display: grid; gap: 16px; scroll-margin-top: 16px; }
+.module-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.module-head .sq { width: 16px; height: 16px; }
+.module-head .pkg { font-family: var(--font-mono); font-size: 13px; color: var(--c); font-weight: 600; }
+.module-head p { color: var(--muted); font-size: 15px; flex-basis: 100%; }
+.tables { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 16px; }
+@media (max-width: 520px) { .tables { grid-template-columns: 1fr; } }
+.tcard { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; min-width: 0; display: grid; grid-template-rows: auto auto 1fr auto; }
+.tcard-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 11px 14px; border-bottom: 2px solid var(--c); }
+.tname { font-family: var(--font-mono); font-weight: 600; font-size: 15px; }
+.badge { font-family: var(--font-body); font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 8px; border-radius: 3px; border: 1px solid currentColor; white-space: nowrap; color: var(--muted); }
+.tdesc { padding: 10px 14px 0; font-size: 14px; color: var(--muted); }
+.cols-wrap { overflow-x: auto; padding: 6px 6px 8px; }
+table.cols { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.cols td { padding: 4px 8px; border-bottom: 1px dashed var(--line); vertical-align: top; }
+table.cols tr:last-child td { border-bottom: 0; }
+table.cols td:first-child { font-family: var(--font-mono); font-weight: 600; white-space: nowrap; }
+table.cols td:nth-child(2) { font-family: var(--font-mono); color: var(--muted); white-space: nowrap; }
+table.cols td:nth-child(3) { color: var(--muted); font-size: 12.5px; }
+.key { font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; padding: 0 4px; border-radius: 3px; margin-right: 4px; background: var(--code-bg); color: var(--fg); }
+.tidx { border-top: 1px solid var(--line); padding: 10px 14px; font-size: 12.5px; color: var(--muted); display: grid; gap: 3px; }
+.tidx code { font-size: 12px; }
+
+.wide { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; overflow-x: auto; }
+.wide.mod { border-top: 3px solid var(--c); }
+table.grid { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 760px; }
+table.grid th { text-align: left; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding: 10px 12px; border-bottom: 1px solid var(--line); font-weight: 700; }
+table.grid td { padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.grid tr:last-child td { border-bottom: 0; }
+table.grid td.uc { font-family: var(--font-mono); font-size: 13px; font-weight: 600; white-space: nowrap; }
+table.grid td.ep { font-family: var(--font-mono); font-size: 12.5px; color: var(--muted); }
+table.grid td.fx { color: var(--muted); font-size: 13.5px; }
+table.grid td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 600; }
+.kind { font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; border-radius: 3px; padding: 1px 6px; margin-left: 6px; background: var(--code-bg); color: var(--muted); font-family: var(--font-body); }
+.kind.chg { background: var(--accent); color: var(--accent-fg); }
+.uc-module { display: grid; gap: 10px; }
+.uc-module h3 { display: flex; align-items: center; gap: 10px; }
+.uc-module h3 .pkg { font-family: var(--font-mono); font-size: 13px; color: var(--c); font-weight: 600; }
+
+/* agenda */
+.agenda { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 18px; overflow-x: auto; display: grid; gap: 14px; }
+.ag-grid { display: grid; grid-template-columns: 120px repeat(40, minmax(15px, 1fr)); row-gap: 8px; min-width: 760px; font-size: 13px; }
+.ag-h { font-family: var(--font-mono); font-size: 12px; color: var(--muted); grid-column: span 4; border-left: 1px solid var(--line); padding-left: 4px; }
+.ag-lbl { font-weight: 600; padding: 6px 0; grid-column: 1; }
+.blk { border-radius: 3px; padding: 6px 6px; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.blk.bk { background: color-mix(in srgb, var(--m-booking) 24%, transparent); border: 1px solid var(--m-booking); }
+.blk.off { background: repeating-linear-gradient(-45deg, var(--code-bg) 0 6px, transparent 6px 12px); border: 1px solid var(--line); color: var(--muted); }
+.blk.free { background: color-mix(in srgb, var(--m-schedule) 18%, transparent); border: 1px dashed var(--m-schedule); color: var(--fg); }
+.ag-note { font-size: 14px; color: var(--muted); }
+.ag-key { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; color: var(--muted); }
+.ag-key span { display: inline-flex; align-items: center; gap: 6px; }
+.ag-key i { width: 22px; height: 12px; display: inline-block; border-radius: 2px; }
+
+pre.code { background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; padding: 16px 18px; overflow-x: auto; margin: 0; font-family: var(--font-mono); font-size: 13px; line-height: 1.6; color: var(--fg); }
+pre.code .c { color: var(--muted); }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+.two > div { display: grid; gap: 12px; align-content: start; min-width: 0; }
+
+.callout { border-left: 4px solid var(--accent); background: var(--surface); padding: 14px 18px; border-radius: 0 6px 6px 0; display: grid; gap: 6px; }
+.callout p { max-width: none; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 18px 20px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.card ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 14.5px; }
+.card li::marker { color: var(--accent); }
+.slo { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.slo div { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; display: grid; gap: 2px; align-content: start; }
+.slo b { font-family: var(--font-display); font-size: 32px; font-weight: 900; font-variant-numeric: tabular-nums; line-height: 1.05; }
+.slo span { font-size: 14px; color: var(--muted); }
+
+ol.steps { margin: 0; padding: 0; list-style: none; counter-reset: s; display: grid; gap: 10px; }
+ol.steps li { counter-increment: s; display: grid; grid-template-columns: 52px 1fr; gap: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; align-items: start; }
+ol.steps li::before { content: counter(s, decimal); font-family: var(--font-display); font-weight: 900; font-size: 34px; line-height: 1; color: var(--accent); }
+ol.steps li:first-child::before { content: "0"; }
+ol.steps li div { display: grid; gap: 4px; min-width: 0; }
+ol.steps li b { font-size: 16px; }
+ol.steps li span { color: var(--muted); font-size: 14.5px; }
+.phases { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 16px; }
+.phase { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 18px 20px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.phase .users { font-family: var(--font-display); font-weight: 900; font-size: 28px; line-height: 1; }
+.phase .tag { text-transform: uppercase; letter-spacing: 0.08em; font-size: 12px; font-weight: 700; color: var(--accent); }
+.phase ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 14.5px; }
+ul.plain { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 76ch; }
+footer { color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); padding-top: 16px; }
+/* desenhos à mão (estilo Excalidraw), como os do Bazza */
+.sketch { background: var(--d-paper); border: 1px solid var(--line); border-radius: 6px; overflow-x: auto; }
+.sketch svg { display: block; width: 100%; min-width: 900px; height: auto; }
+.sketch text { fill: var(--d-ink); font-family: "Architects Daughter", "Comic Sans MS", cursive; }
+.sketch text.s { fill: var(--d-muted); font-family: "Kalam", "Comic Sans MS", cursive; font-weight: 300; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+</style>
+
+<div class="pole" aria-hidden="true"></div>
+<div class="wrap">
+
+<header>
+  <div class="sign">OKUTETA · API · PostgreSQL 18 + PostGIS · Java 25 · Spring Boot 4</div>
+  <h1>Marcações em barbearias de Angola</h1>
+  <p class="lede">Modelo de dados, casos de uso e arquitetura do Okuteta, um marketplace onde o cliente encontra barbearias perto de si, escolhe o serviço e o barbeiro (ou "qualquer um") e marca a hora. Segue a mesma linha do Bazza: monólito modular, Clean Architecture e cada fornecedor atrás de uma porta. Ainda não há código, por isso tudo o que está aqui é uma proposta para aprovar.</p>
+  <nav class="toc" aria-label="Partes">
+    <a href="#estado"><b>0</b>Âmbito e decisões</a>
+    <a href="#autenticacao"><b>0</b>Autenticação e 2FA</a>
+    <a href="#modelo"><b>1</b>Modelo de dados</a>
+    <a href="#casos-de-uso"><b>2</b>Casos de uso</a>
+    <a href="#arquitetura"><b>3</b>Arquitetura</a>
+    <a href="#aws"><b>3</b>Na AWS</a>
+    <a href="#capacidade"><b>4</b>Capacidade</a>
+    <a href="#operacao"><b>5</b>Operação</a>
+    <a href="#roadmap"><b>6</b>Plano de construção</a>
+  </nav>
+  <div class="legend" id="legend"></div>
+</header>
+
+<!-- ============================ 0. ÂMBITO ============================ -->
+<div class="part">
+<div class="part-title" id="estado"><span class="num">0</span><h2>Âmbito e decisões</h2></div>
+
+<section>
+  <p>O MVP tem oito módulos. O cliente procura barbearias aprovadas perto de si, vê os horários livres e marca um ou mais serviços com um barbeiro ou "sem preferência". A barbearia escolhe se a marcação confirma na hora ou se a aprova, e define o intervalo da agenda, a antecedência e a regra de faltas. O dono regista a barbearia, um administrador aprova-a, e o dono convida os barbeiros pelo telemóvel. Cada barbeiro tem conta própria e gere a sua agenda. O pagamento é feito direto à barbearia (espécie, Multicaixa Express, Unitel Money ou Afrimoney), e a plataforma regista o pagamento e o eventual reembolso: o Okuteta é grátis no MVP.</p>
+  <div class="status-grid">
+    <div><b>8</b><span>módulos: user, shop, schedule, booking, review, notification, payment e messaging</span></div>
+    <div><b>31</b><span>tabelas, incluindo os slots da agenda, as passkeys, o 2FA, o outbox e o ShedLock</span></div>
+    <div><b id="uc-count">0</b><span>casos de uso, cada um uma classe em <code>application/usecase</code></span></div>
+    <div><b>9</b><span>formas de entrar: e-mail ou telemóvel com senha, código por SMS ou WhatsApp, link por e-mail, Google, Facebook, Apple e passkey</span></div>
+    <div><b>0 Kz</b><span>de comissão: o módulo de pagamentos só regista o pagamento à barbearia e o reembolso</span></div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Para aprovar</div>
+  <h2>Decisões propostas</h2>
+  <p>As decisões de 1 a 14 foram trocadas pelas alternativas que escolheste (revisão de 27/10). As 15 e 16 ficaram como estavam.</p>
+  <div class="wide">
+    <table class="grid">
+      <thead><tr><th>#</th><th>Tema</th><th>Decisão</th><th>Porquê e consequências</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1</td><td>Base de dados nos testes</td><td>H2 em memória no dia a dia, como no Bazza. Testcontainers (PostgreSQL 18 + PostGIS) no CI e nos testes da busca</td><td class="fx">Os testes correm sem Docker. Em troca, o schema evita o que o H2 não tem: nada de índices parciais nem <code>EXCLUDE</code>. Onde era preciso, usa-se uma coluna anulável com <code>UNIQUE</code>, como o <code>active_plate</code> do Bazza.</td></tr>
+        <tr><td class="num">2</td><td>Duas marcações no mesmo horário</td><td>Trava os barbeiros candidatos (<code>FOR UPDATE</code> em <code>shop_members</code>, por ordem de id). A marcação ocupa os slots com um <code>UPDATE</code> que só pega slots livres</td><td class="fx">Só espera quem disputa o mesmo barbeiro. A ordem por id evita deadlocks quando "qualquer um" trava vários barbeiros. Se dois pedidos escaparem à trava, o segundo altera menos slots do que precisa e desfaz tudo. Isto funciona no H2.</td></tr>
+        <tr><td class="num">3</td><td>Horários livres</td><td>Tabela <code>member_slots</code> gerada por um job para a janela de marcação. A disponibilidade é uma leitura dos slots livres</td><td class="fx">A leitura é rápida e a ocupação fica no banco. Em troca, mudar o horário, uma folga, o intervalo ou o fuso regenera os slots livres.</td></tr>
+        <tr><td class="num">4</td><td>Intervalo dos horários</td><td>Configurável por barbearia: 10, 15, 20 ou 30 min (<code>shops.slot_minutes</code>, 15 por omissão)</td><td class="fx">A marcação ocupa os slots necessários, arredondando para cima: 45 min com slots de 30 ocupam 60.</td></tr>
+        <tr><td class="num">5</td><td>Fuso horário</td><td>Por barbearia (<code>shops.timezone</code>, <code>Africa/Luanda</code> por omissão). <code>timestamptz</code> em UTC no banco e <code>time</code> no fuso da barbearia nos horários semanais</td><td class="fx">Prepara outros países sem precisar de migração.</td></tr>
+        <tr><td class="num">6</td><td>Antecedência</td><td>Por barbearia: <code>min_notice_minutes</code> (30 por omissão) e <code>max_advance_days</code> (30 por omissão)</td><td class="fx">O job gera slots até <code>max_advance_days</code>, e a disponibilidade esconde os que começam antes de <code>min_notice_minutes</code>.</td></tr>
+        <tr><td class="num">7</td><td>Atribuição em "qualquer um"</td><td>Sorteio entre os barbeiros livres que fazem todos os serviços pedidos</td><td class="fx">Reparte o trabalho sem uma regra que o dono tenha de perceber. Nos testes, o sorteio usa um <code>RandomGenerator</code> injetado com semente fixa.</td></tr>
+        <tr><td class="num">8</td><td>Busca por proximidade</td><td>PostGIS desde já, com <code>ST_DWithin</code> e <code>ST_Distance</code> sobre <code>geography(Point)</code> e índice GiST</td><td class="fx">É mais preciso e ordena pela distância no próprio banco. Como o H2 não tem PostGIS, a coluna <code>location</code> é gerada a partir de latitude e longitude numa migration só do PostgreSQL (<code>db/migration/postgresql</code>). A busca é uma query nativa, e o teste dela corre no Testcontainers.</td></tr>
+        <tr><td class="num">9</td><td>Faltas</td><td>Cada barbearia define o limite (<code>no_show_limit</code>, 3 por omissão; 0 desliga) e a janela (<code>no_show_window_days</code>, 90 por omissão). O bloqueio vale só nessa barbearia</td><td class="fx">As faltas são contadas por consulta, sem tabela, e o bloqueio acaba sozinho quando a falta mais antiga sai da janela.</td></tr>
+        <tr><td class="num">10</td><td>Avaliações</td><td>Duplo-cego nos dois sentidos: o cliente avalia a barbearia e o barbeiro, e o barbeiro avalia o cliente. Nenhum lado vê a avaliação do outro até os dois avaliarem ou passarem 14 dias</td><td class="fx">Evita retaliação. A nota do cliente aparece à barbearia quando ela aprova uma marcação MANUAL.</td></tr>
+        <tr><td class="num">11</td><td>Contactos no chat</td><td>Telefones e e-mails mascarados (<code>•••</code>), com libphonenumber (região AO) e uma regra para e-mails</td><td class="fx">Protege o número do cliente e prepara uma comissão futura. O telefone da barbearia continua público no perfil; se a comissão vier, sai de lá também.</td></tr>
+        <tr><td class="num">12</td><td>Pagamentos</td><td>Registo com reembolsos: o cliente pede a devolução de uma marcação paga que foi cancelada, e a barbearia devolve com comprovativo</td><td class="fx">A devolução é sempre do valor pago, porque o cliente só cancela dentro do prazo e a barbearia que cancela devolve tudo. As disputas vão para o administrador, e o reembolso sem resposta do cliente em 7 dias conta como recebido.</td></tr>
+        <tr><td class="num">13</td><td>Fotos e comprovativos</td><td>Upload direto para o S3 com URL PUT pré-assinada (5 min); a API confere o tamanho e o tipo pelo conteúdo depois do upload. A leitura é por URL GET pré-assinada. No desenvolvimento, MinIO no Docker Compose</td><td class="fx">O ficheiro não passa pela API. A chave começa pelo id de quem pediu (<code>users/{id}/…</code>), por isso ninguém usa o upload de outra pessoa.</td></tr>
+        <tr><td class="num">14</td><td>Senhas</td><td>Argon2id (<code>Argon2PasswordEncoder</code> do Spring Security, com BouncyCastle)</td><td class="fx">É a recomendação atual da OWASP e custa uma biblioteca a mais.</td></tr>
+        <tr><td class="num">15</td><td>Eventos entre módulos</td><td>Eventos do Spring na mesma transação, mais um outbox por job (sem broker) para o que sai da aplicação</td><td class="fx">É a mesma solução do Bazza: nada se perde e nada sai de uma transação desfeita.</td></tr>
+        <tr><td class="num">16</td><td>Pacote raiz</td><td><code>ao.okuteta</code></td><td class="fx">Vem do nome da pasta do projeto.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="autenticacao">
+  <div class="eyebrow">Autenticação</div>
+  <h2>Nove formas de entrar</h2>
+  <p>Todas emitem a mesma sessão: um JWT de 15 min e um refresh token. Uma conta pode ter várias formas ao mesmo tempo, a senha é opcional e nenhuma operação remove a última forma de entrar. Pedidos de código e de link têm sempre a mesma resposta, haja ou não conta, para ninguém descobrir quem está registado.</p>
+  <div class="wide">
+    <table class="grid">
+      <thead><tr><th>Forma</th><th>Como funciona</th><th>Condição</th><th>Limites e riscos</th></tr></thead>
+      <tbody>
+        <tr><td class="uc">E-mail + senha</td><td>Envia-se o e-mail e a senha (guardada com Argon2id) para <code>POST /auth/login</code>.</td><td class="fx">A conta tem senha.</td><td class="fx">5 erros bloqueiam o login 15 min.</td></tr>
+        <tr><td class="uc">Telemóvel + senha</td><td>O mesmo endpoint aceita o telemóvel em vez do e-mail.</td><td class="fx">O telemóvel está verificado. Um número não verificado responde como se não existisse.</td><td class="fx">Iguais aos do e-mail.</td></tr>
+        <tr><td class="uc">Código por SMS</td><td>Código de 6 dígitos, válido 10 min, com até 5 tentativas.</td><td class="fx">O telemóvel está verificado e é +244.</td><td class="fx">1 código por minuto e 5 por dia, por número. Cada SMS tem custo.</td></tr>
+        <tr><td class="uc">Código por WhatsApp</td><td>Igual ao SMS, enviado pelo Twilio com um template de autenticação aprovado pela Meta.</td><td class="fx">O telemóvel está verificado e tem WhatsApp.</td><td class="fx">Se o WhatsApp falhar, a app oferece o SMS. É preciso uma conta WhatsApp Business verificada.</td></tr>
+        <tr><td class="uc">Link por e-mail</td><td>Link de uso único, válido 15 min. Abre a app (Universal Links e App Links), e a app envia o token por <code>POST</code>.</td><td class="fx">O e-mail está confirmado.</td><td class="fx">Abrir o link não o gasta, porque os antivírus de e-mail abrem links sozinhos. Máximo de 3 por hora. Precisa de um domínio próprio.</td></tr>
+        <tr><td class="uc">Google</td><td>A API valida o idToken do SDK nativo com as chaves públicas da Google, conferindo o público e o nonce.</td><td class="fx">Nenhuma.</td><td class="fx">Uma conta nova completa o registo com o telemóvel.</td></tr>
+        <tr><td class="uc">Facebook</td><td>A API confere o access token do SDK na Graph API (<code>debug_token</code> e <code>/me</code>). No iOS com Limited Login, valida um JWT, como o da Google.</td><td class="fx">Nenhuma.</td><td class="fx">O Facebook pode não dar o e-mail. Um e-mail não confirmado nunca liga contas.</td></tr>
+        <tr><td class="uc">Apple</td><td>A API valida o identityToken com as chaves da Apple e confere o nonce.</td><td class="fx">Nenhuma.</td><td class="fx">A Apple pode dar um e-mail de reencaminhamento e só manda o nome no primeiro login.</td></tr>
+        <tr><td class="uc">Passkey</td><td>WebAuthn com webauthn4j: desafio de uso único (5 min) e credencial descoberta, sem escrever o e-mail. A verificação do utilizador (biometria ou PIN) é obrigatória.</td><td class="fx">Android 9+ ou iOS 16+, e um domínio com <code>assetlinks.json</code> e <code>apple-app-site-association</code>.</td><td class="fx">Já conta como dois fatores. O contador de assinaturas é conferido para detetar credenciais copiadas.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout">
+    <p><strong>Fora do código, é preciso:</strong> um domínio próprio (por exemplo <code>okuteta.ao</code>) para as passkeys e os links; uma conta Apple Developer com Sign in with Apple e Associated Domains; uma app no Facebook aprovada na revisão da Meta; um cliente OAuth da Google para Android e iOS; o Twilio com um remetente WhatsApp e um template de autenticação aprovado (exige a empresa verificada no Meta Business); e o Brevo para os e-mails.</p>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Viabilidade</div>
+  <h2>2FA e MFA</h2>
+  <p><strong>São viáveis no MVP e reaproveitam quase tudo.</strong> Os códigos por SMS e WhatsApp, as passkeys e o token de passo intermédio (o mesmo do registo social) já existem por causa das formas de entrar. Falta só a app autenticadora (TOTP), que o JDK faz sem biblioteca, e os códigos de recuperação. Aqui, 2FA quer dizer pedir um segundo fator de outro canal depois do primeiro. MFA é o mesmo princípio com qualquer combinação, e a passkey já o cumpre sozinha.</p>
+  <div class="wide">
+    <table class="grid">
+      <thead><tr><th>Fator</th><th>Segurança</th><th>Custo</th><th>Proposta</th></tr></thead>
+      <tbody>
+        <tr><td class="uc">Passkey</td><td>Forte: resiste a phishing</td><td class="fx">Grátis</td><td class="fx">Fator preferido. Login por passkey não pede segundo fator.</td></tr>
+        <tr><td class="uc">App autenticadora (TOTP)</td><td>Boa, mas não resiste a phishing em tempo real</td><td class="fx">Grátis, sem fornecedor</td><td class="fx">Para quem não tem passkey. Usa RFC 6238 com o JDK (HmacSHA1, 6 dígitos, 30 s), guarda o segredo cifrado com AES-256-GCM e recusa um código já usado.</td></tr>
+        <tr><td class="uc">Código por WhatsApp</td><td>Média: sofre com a troca de SIM quando o WhatsApp é reinstalado</td><td class="fx">Por conversa de autenticação</td><td class="fx">Alternativa para quem não usa app autenticadora.</td></tr>
+        <tr><td class="uc">Código por SMS</td><td>Fraca: troca de SIM e interceção</td><td class="fx">Por SMS</td><td class="fx">Igual ao WhatsApp.</td></tr>
+        <tr><td class="uc">Código por e-mail</td><td>Média</td><td class="fx">Grátis (Brevo)</td><td class="fx">Só quando o primeiro fator não foi o e-mail.</td></tr>
+        <tr><td class="uc">Códigos de recuperação</td><td>Emergência</td><td class="fx">Grátis</td><td class="fx">10 códigos de uso único, mostrados uma vez e guardados com hash.</td></tr>
+        <tr><td class="uc">Aprovar na app (push)</td><td>Boa</td><td class="fx">Grátis</td><td class="fx">Fase 2: precisa de outro aparelho com sessão e de proteção contra quem aprova por cansaço.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="cards">
+    <div class="card">
+      <h3>Quem tem de usar</h3>
+      <ul>
+        <li>Ninguém é obrigado: o 2FA é opcional para todos, incluindo administradores.</li>
+        <li>Todos os fatores valem para todos, incluindo SMS e WhatsApp para os administradores.</li>
+        <li>Os donos veem um aviso na app a recomendá-lo, porque decidem para onde vai o dinheiro.</li>
+        <li>Risco aceite: uma senha de administrador roubada dá acesso às aprovações e aos comprovativos, e com 2FA por SMS ou WhatsApp uma troca de SIM também basta. A confirmação em ações sensíveis atenua isso, mas não o impede.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Como os fatores combinam</h3>
+      <ul>
+        <li>O segundo fator é de outro canal: depois de um código por SMS ou WhatsApp vale a app, a passkey ou o e-mail; depois do link por e-mail vale tudo menos o e-mail.</li>
+        <li>O segundo fator só é pedido num login novo. Renovar a sessão com o refresh token não o pede.</li>
+        <li>Com 2FA ligado, redefinir a senha também pede o segundo fator. Sem isso, a recuperação da senha contornava o 2FA.</li>
+        <li>O JWT leva <code>amr</code> (os métodos usados) e <code>auth_time</code>.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Confirmação em ações sensíveis</h3>
+      <ul>
+        <li>Pede-se a confirmação para trocar a senha, o telemóvel ou o e-mail, ligar ou desligar o 2FA, gerir passkeys e contas sociais, gerar novos códigos de recuperação, apagar a conta e mudar as contas de pagamento da barbearia.</li>
+        <li>A pessoa confirma com um fator (senha, passkey, app ou código), e a confirmação vale 5 min (<code>auth_time</code>). Vale mesmo para quem não ligou o 2FA.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Recuperação e avisos</h3>
+      <ul>
+        <li>Quem perde a app e os códigos de recuperação é recuperado manualmente pelo suporte (fora do MVP).</li>
+        <li>Login num aparelho novo, 2FA ligado ou desligado e uso de um código de recuperação geram um aviso na app e um e-mail.</li>
+        <li><code>GET /me/sessions</code> lista os aparelhos com sessão, e qualquer um pode ser terminado.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="diagram">
+<pre class="mermaid">
+sequenceDiagram
+  autonumber
+  participant C as App
+  participant API as Okuteta API
+  participant DB as PostgreSQL
+  C->>API: POST /auth/login (telemóvel + senha)
+  API-->>C: 200 mfaRequired, mfaToken (5 min, aud okuteta-mfa), métodos [TOTP, PASSKEY, WHATSAPP, RECOVERY]
+  C->>API: POST /auth/mfa/verify (mfaToken, TOTP, 123456)
+  API->>DB: confere o código e o último passo usado (FOR UPDATE)
+  API-->>C: 200 sessão (amr pwd + otp, auth_time)
+  Note over C,API: dias depois, para mudar o número Multicaixa da barbearia
+  C->>API: PUT /shops/{id}/payment-accounts
+  API-->>C: 401 step_up_required
+  C->>API: POST /auth/step-up (passkey)
+  API-->>C: JWT novo com auth_time de agora
+  C->>API: PUT /shops/{id}/payment-accounts
+  API-->>C: 200
+</pre>
+  </div>
+</section>
+</div>
+
+<!-- ============================ 1. MODELO ============================ -->
+<div class="part">
+<div class="part-title" id="modelo"><span class="num">1</span><h2>Modelo de dados</h2></div>
+
+<section>
+  <div class="eyebrow">Visão geral</div>
+  <h2>Relacionamentos</h2>
+  <p>Há um único registo de utilizador. Ser dono ou barbeiro é uma linha em <code>shop_members</code>; quem não tem nenhuma é só cliente. A agenda de cada barbeiro é uma sequência de slots, e a marcação ocupa os slots seguidos de que precisa, guardando uma cópia dos serviços com o preço do momento.</p>
+  <div class="diagram">
+<pre class="mermaid">
+erDiagram
+  users ||--o{ refresh_tokens : "sessões"
+  users ||--o{ verification_codes : "códigos"
+  users ||--o{ user_identities : "Google, Facebook, Apple"
+  users ||--o{ passkeys : "passkeys"
+  users ||--o{ webauthn_challenges : "desafios"
+  users ||--o| totp_credentials : "app autenticadora"
+  users ||--o{ recovery_codes : "códigos de recuperação"
+  users ||--o{ shops : "é dono"
+  shops ||--o{ shop_opening_hours : "horário"
+  shops ||--o{ shop_members : "equipa"
+  users ||--o{ shop_members : "trabalha em"
+  shops ||--o{ shop_invites : "convites"
+  shops ||--o{ services : "serviços"
+  shop_members ||--o{ member_services : "faz"
+  services ||--o{ member_services : "feito por"
+  shop_members ||--o{ working_hours : "horário semanal"
+  shop_members ||--o{ time_off : "folgas"
+  shop_members ||--o{ member_slots : "agenda"
+  bookings ||--|{ member_slots : "ocupa"
+  shop_members ||--o{ bookings : "atende"
+  users ||--o{ bookings : "marca"
+  bookings ||--|{ booking_services : "serviços copiados"
+  bookings ||--o{ booking_status_history : "histórico"
+  bookings ||--o{ reviews : "avaliações (2 sentidos)"
+  bookings ||--o| booking_payments : "pagamento"
+  booking_payments ||--o| refund_requests : "reembolso"
+  shops ||--o{ shop_payment_accounts : "onde recebe"
+  users ||--o{ notifications : "recebe"
+  users ||--o{ device_tokens : "aparelhos"
+  shops ||--o{ conversations : "chat"
+  users ||--o{ conversations : "chat"
+  conversations ||--o{ messages : "contém"
+  rating_stats {
+    uuid subject_id PK
+    varchar subject_type
+  }
+  outbox_events {
+    uuid id PK
+    varchar event_type
+  }
+</pre>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Tabelas</div>
+  <h2>Colunas por módulo</h2>
+  <p>Todas as tabelas têm <code>created_at</code> e, quando mudam, <code>updated_at</code>, ambos <code>timestamptz</code> em UTC; estão omitidos abaixo. As chaves são <code>uuid</code> v7 geradas na aplicação (o H2 não tem <code>uuidv7()</code>), e o dinheiro fica em <code>bigint</code> (<code>*_cents</code>) com <code>currency</code> <code>AOA</code>. Nenhum índice é parcial, para o schema correr igual no H2.</p>
+  <nav class="module-nav" id="module-nav" aria-label="Módulos"></nav>
+  <div id="modules" style="display:grid; gap:44px;"></div>
+</section>
+
+<section>
+  <div class="eyebrow">Regra central</div>
+  <h2>Como a agenda encontra horários livres</h2>
+  <p>Exemplo: sábado na Barbearia Kilamba, que usa slots de 15 min, com um pedido de <strong>Corte + Barba (30 + 15 = 45 min, ou seja 3 slots)</strong>. Os slots existem só dentro do horário de cada barbeiro e fora das folgas, e os que têm <code>booking_id</code> estão ocupados. Um início vale se os 3 slots seguidos estiverem livres.</p>
+  <div class="agenda">
+    <div class="ag-grid" role="img" aria-label="Agenda de sábado: Mário e Joana, das 09:00 às 19:00">
+      <div class="ag-lbl" style="grid-row:1"></div>
+      <div class="ag-h" style="grid-row:1;grid-column:2/span 4">09:00</div>
+      <div class="ag-h" style="grid-row:1;grid-column:6/span 4">10:00</div>
+      <div class="ag-h" style="grid-row:1;grid-column:10/span 4">11:00</div>
+      <div class="ag-h" style="grid-row:1;grid-column:14/span 4">12:00</div>
+      <div class="ag-h" style="grid-row:1;grid-column:18/span 4">13:00</div>
+      <div class="ag-h" style="grid-row:1;grid-column:22/span 4">14:00</div>
+      <div class="ag-h" style="grid-row:1;grid-column:26/span 4">15:00</div>
+      <div class="ag-h" style="grid-row:1;grid-column:30/span 4">16:00</div>
+      <div class="ag-h" style="grid-row:1;grid-column:34/span 4">17:00</div>
+      <div class="ag-h" style="grid-row:1;grid-column:38/span 4">18:00</div>
+
+      <div class="ag-lbl" style="grid-row:2">Mário</div>
+      <div class="blk bk"  style="grid-row:2;grid-column:2/span 3" title="09:00–09:45">Corte+Barba</div>
+      <div class="blk free" style="grid-row:2;grid-column:5/span 3" title="09:45–10:30">livre</div>
+      <div class="blk bk"  style="grid-row:2;grid-column:8/span 2" title="10:30–11:00">Corte</div>
+      <div class="blk free" style="grid-row:2;grid-column:10/span 8" title="11:00–13:00">livre</div>
+      <div class="blk off" style="grid-row:2;grid-column:18/span 4" title="13:00–14:00">almoço</div>
+      <div class="blk free" style="grid-row:2;grid-column:22/span 4" title="14:00–15:00">livre</div>
+      <div class="blk bk"  style="grid-row:2;grid-column:26/span 4" title="15:00–16:00">Tranças</div>
+      <div class="blk free" style="grid-row:2;grid-column:30/span 12" title="16:00–19:00">livre</div>
+
+      <div class="ag-lbl" style="grid-row:3">Joana</div>
+      <div class="blk off" style="grid-row:3;grid-column:2/span 4" title="09:00–10:00">entra às 10</div>
+      <div class="blk bk"  style="grid-row:3;grid-column:6/span 6" title="10:00–11:30">Corte+Pintura</div>
+      <div class="blk free" style="grid-row:3;grid-column:12/span 6" title="11:30–13:00">livre</div>
+      <div class="blk off" style="grid-row:3;grid-column:18/span 4" title="13:00–14:00">almoço</div>
+      <div class="blk bk"  style="grid-row:3;grid-column:22/span 2" title="14:00–14:30">Corte</div>
+      <div class="blk free" style="grid-row:3;grid-column:24/span 14" title="14:30–18:00">livre</div>
+      <div class="blk off" style="grid-row:3;grid-column:38/span 4" title="18:00–19:00">saiu</div>
+    </div>
+    <div class="ag-key">
+      <span><i style="background:color-mix(in srgb, var(--m-booking) 24%, transparent);border:1px solid var(--m-booking)"></i>slots ocupados</span>
+      <span><i style="background:repeating-linear-gradient(-45deg, var(--code-bg) 0 4px, transparent 4px 8px);border:1px solid var(--line)"></i>sem slots (fora do horário ou folga)</span>
+      <span><i style="background:color-mix(in srgb, var(--m-schedule) 18%, transparent);border:1px dashed var(--m-schedule)"></i>slots livres</span>
+    </div>
+    <p class="ag-note">Com o Mário: 09:45, das 11:00 às 12:15, 14:00, 14:15 e das 16:00 às 18:15. Com a Joana: das 11:30 às 12:15 e das 14:30 às 17:15. "Qualquer um" mostra a união dos dois. Às 09:45 só o Mário cabe, por isso fica com ele. Às 14:30 cabem os dois, e o sistema sorteia um deles. Se a barbearia mudar para slots de 30 min, os mesmos 45 min ocupam 2 slots (60 min) e só começam às horas e às meias horas.</p>
+  </div>
+</section>
+
+<section class="two">
+  <div>
+    <div class="eyebrow">Consulta</div>
+    <h3>Busca de barbearias (PostGIS)</h3>
+    <p>Encontra as barbearias aprovadas dentro do raio que fazem o serviço pedido, já ordenadas pela distância.</p>
+<pre class="code">SELECT s.id, s.name,
+       ST_Distance(s.location, :ponto) AS metros,
+       MIN(sv.price_cents) AS from_cents
+FROM shops s
+JOIN services sv ON sv.shop_id = s.id
+                AND sv.active
+WHERE s.status = 'APPROVED'
+  AND ST_DWithin(s.location, :ponto, :raioMetros)
+  AND (:q IS NULL OR sv.name ILIKE '%' || :q || '%')
+GROUP BY s.id
+ORDER BY metros;
+<span class="c">-- :ponto = ST_MakePoint(:lng, :lat)::geography
+-- location é gerada de latitude e longitude,
+-- com índice GiST (migration só do PostgreSQL)</span></pre>
+  </div>
+  <div>
+    <div class="eyebrow">Transação</div>
+    <h3>Marcar sem sobreposição</h3>
+    <p>A trava nos barbeiros candidatos faz esperar só quem quer o mesmo barbeiro. O <code>UPDATE</code> só pega slots sem marcação: se faltar algum, a transação desfaz-se e a resposta é 409.</p>
+<pre class="code">BEGIN;
+<span class="c">-- candidatos: o barbeiro escolhido, ou todos os
+-- ativos que fazem todos os serviços pedidos</span>
+SELECT id FROM shop_members
+ WHERE id IN (:candidatos)
+ ORDER BY id
+   FOR UPDATE;          <span class="c">-- ordem fixa: sem deadlocks</span>
+
+<span class="c">-- sorteia um dos que têm os slots livres</span>
+INSERT INTO bookings (...);
+INSERT INTO booking_services (...);
+
+UPDATE member_slots SET booking_id = :reserva
+ WHERE member_id = :barbeiro
+   AND starts_at &gt;= :inicio
+   AND starts_at &lt;  :fimArredondado
+   AND booking_id IS NULL;
+<span class="c">-- linhas alteradas ≠ slots precisos → ROLLBACK, 409</span>
+COMMIT;                 <span class="c">-- eventos depois do commit</span></pre>
+  </div>
+</section>
+</div>
+
+<!-- ============================ 2. CASOS DE USO ============================ -->
+<div class="part">
+<div class="part-title" id="casos-de-uso"><span class="num">2</span><h2>Casos de uso</h2></div>
+
+<section>
+  <p>Cada linha vira uma classe em <code>&lt;módulo&gt;/application/usecase</code>. Os marcados com <span class="kind">job</span> correm agendados (com ShedLock), os marcados com <span class="kind">evento</span> reagem a eventos de outros módulos e os marcados com <span class="kind">público</span> são chamados por outro módulo, sem endpoint. Todos os endpoints ficam sob <code>/api/v1</code>, omitido abaixo.</p>
+  <div id="usecases" style="display:grid; gap:32px;"></div>
+</section>
+
+<section>
+  <div class="eyebrow">Fluxo ponta a ponta</div>
+  <h2>Marcação com aprovação, pagamento e reembolso</h2>
+  <div class="diagram">
+<pre class="mermaid">
+sequenceDiagram
+  autonumber
+  participant C as App do cliente
+  participant API as Okuteta API
+  participant DB as PostgreSQL
+  participant B as App do barbeiro
+  C->>API: GET /shops/{id}/availability?data=sábado&servicos=corte,barba
+  API->>DB: slots livres seguidos de quem faz os serviços
+  API-->>C: horários livres (sem barbeiro: união de todos)
+  C->>API: POST /shops/{id}/bookings (Idempotency-Key, MULTICAIXA_EXPRESS)
+  API->>DB: trava os candidatos, sorteia, ocupa os slots
+  API->>DB: marcação PENDING (barbearia MANUAL), pagamento PENDING, aviso
+  API-->>C: 201 PENDING, expira em 2 h
+  API-->>B: push "Novo pedido: Corte + Barba, sábado 14:30" com a nota do cliente
+  B->>API: POST /bookings/{id}/approve
+  C->>API: POST /uploads, depois PUT direto no S3 (comprovativo)
+  C->>API: POST /bookings/{id}/payment/declare com a key
+  B->>API: POST /bookings/{id}/payment/received
+  B->>API: POST /shops/{id}/bookings/{bookingId}/cancel (barbeiro doente)
+  API->>DB: liberta os slots
+  API-->>C: push "Marcação cancelada. Pode pedir o reembolso"
+  C->>API: POST /bookings/{id}/payment/refund
+  B->>API: POST /refunds/{id}/sent com comprovativo
+  C->>API: POST /refunds/{id}/confirm
+</pre>
+  </div>
+</section>
+</div>
+
+<!-- ============================ 3. ARQUITETURA ============================ -->
+<div class="part">
+<div class="part-title" id="arquitetura"><span class="num">3</span><h2>Arquitetura</h2></div>
+
+<section>
+  <p>É um <strong>monólito modular</strong>: um único deploy da API, com os módulos separados por pacote e a regra de dependência verificada pelo ArchUnit. A API não guarda estado, por isso uma segunda instância entra sem mudar código. Os ficheiros vão da app direto para o S3. Não há Redis nem broker no MVP: os avisos, os slots e o outbox correm como jobs no PostgreSQL.</p>
+  <div class="diagram">
+<pre class="mermaid">
+flowchart LR
+  APP[App Android e iOS] --> LB[Load balancer<br/>TLS]
+  APP -- upload direto<br/>URL pré-assinada --> S3
+  LB --> API[Okuteta API x 2<br/>Spring Boot, virtual threads]
+  API --> PG[(PostgreSQL 18<br/>+ PostGIS)]
+  API -- assina URLs e confere --> S3[(S3<br/>fotos e comprovativos)]
+  API --> IDP[Google, Facebook e Apple<br/>chaves públicas e Graph API]
+  API --> SMS[Twilio<br/>SMS e WhatsApp]
+  API --> MAIL[Brevo<br/>e-mail SMTP]
+  PG --> JOBS[Jobs na própria API<br/>push, lembretes, slots, outbox]
+  JOBS --> FCM[Firebase<br/>push]
+  JOBS --> MAIL
+  API -.-> OBS[Actuator + Micrometer<br/>métricas e logs]
+</pre>
+  </div>
+</section>
+
+<section class="two">
+  <div>
+    <div class="eyebrow">Pacotes</div>
+    <h3>Cada módulo tem as mesmas três camadas</h3>
+<pre class="code">ao.okuteta
+├── shared/          <span class="c">segurança, outbox, uploads, web, config</span>
+├── user/
+│   ├── domain/          <span class="c">entidades e regras, sem Spring</span>
+│   ├── application/
+│   │   ├── usecase/     <span class="c">um caso de uso por classe</span>
+│   │   └── port/        <span class="c">interfaces: repositórios, SMS…</span>
+│   └── infrastructure/
+│       ├── web/         <span class="c">controllers e DTOs</span>
+│       ├── persistence/ <span class="c">JPA</span>
+│       └── sms/, identity/ …  <span class="c">adapters</span>
+├── shop/  schedule/  booking/  review/
+└── notification/  payment/  messaging/</pre>
+  </div>
+  <div>
+    <div class="eyebrow">Regras</div>
+    <h3>Como os módulos falam</h3>
+    <ul class="plain">
+      <li><code>domain</code> não importa Spring nem JPA, e o ArchUnit falha o build se importar.</li>
+      <li>Um módulo nunca lê as tabelas de outro. Para perguntar, chama um caso de uso <span class="kind">público</span> através de uma porta: o <code>booking</code> chama <code>schedule.ReserveSlots</code>, e o <code>review</code> chama <code>booking.GetBookingParticipants</code>.</li>
+      <li>Para reagir, ouve um evento na mesma transação: <code>BookingCancelled</code> liberta os slots e <code>BookingCompleted</code> convida os dois lados a avaliar.</li>
+      <li>O <code>notification</code> só ouve os outros módulos, e nenhum depende dele.</li>
+      <li>E-mails e push saem depois do commit (outbox e <code>push_status</code>), nunca dentro da transação.</li>
+      <li>Cada fornecedor externo fica atrás de uma porta (<code>SmsSender</code>, <code>IdentityTokenVerifier</code>, <code>PushSender</code>, <code>FileStorage</code>). Em desenvolvimento, os adapters escrevem no log e os ficheiros vão para o MinIO.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Stack</div>
+  <h2>Bibliotecas e serviços</h2>
+  <div class="wide">
+    <table class="grid">
+      <thead><tr><th>Necessidade</th><th>Escolha</th><th>Onde entra</th></tr></thead>
+      <tbody>
+        <tr><td class="uc">Base</td><td>Java 25, Spring Boot 4 (Web MVC, Data JPA, Validation), Maven, virtual threads</td><td class="fx">pom.xml</td></tr>
+        <tr><td class="uc">Banco</td><td>PostgreSQL 18 + PostGIS e Flyway. As migrations comuns correm no H2 e no PostgreSQL, e <code>db/migration/postgresql</code> traz só o PostGIS</td><td class="fx">src/main/resources/db/migration</td></tr>
+        <tr><td class="uc">Autenticação</td><td>Spring Security + OAuth2 Resource Server (JWT de 15 min, <code>aud: okuteta-api</code>), refresh token rotativo</td><td class="fx">shared/infrastructure/security</td></tr>
+        <tr><td class="uc">Senhas</td><td>Argon2id (<code>Argon2PasswordEncoder</code>) com BouncyCastle (<code>bcprov</code>)</td><td class="fx">user/infrastructure/security</td></tr>
+        <tr><td class="uc">Login social</td><td>Nimbus JOSE (já vem com o Spring Security) para os tokens da Google, da Apple e do Limited Login do Facebook; Graph API do Facebook por RestClient</td><td class="fx">user/infrastructure/identity</td></tr>
+        <tr><td class="uc">Passkeys</td><td>webauthn4j</td><td class="fx">user/infrastructure/passkey</td></tr>
+        <tr><td class="uc">2FA</td><td>TOTP (RFC 6238) com o JDK (<code>Mac</code> HmacSHA1) e segredo cifrado com AES-256-GCM (JDK), sem biblioteca</td><td class="fx">user/domain, shared/infrastructure/security</td></tr>
+        <tr><td class="uc">Telemóveis</td><td>libphonenumber (região AO, só móveis), usada também para mascarar contactos no chat</td><td class="fx">user/domain, messaging/domain</td></tr>
+        <tr><td class="uc">SMS, WhatsApp e e-mail</td><td>Twilio por RestClient (SMS, e WhatsApp com template de autenticação), Spring Mail + Brevo</td><td class="fx">user/infrastructure</td></tr>
+        <tr><td class="uc">Links e passkeys na app</td><td>Domínio próprio com <code>apple-app-site-association</code> e <code>assetlinks.json</code>, servidos pela API</td><td class="fx">/.well-known</td></tr>
+        <tr><td class="uc">Push</td><td>FCM HTTP v1 (entrega no iOS pelo APNs), conta de serviço assinada com Nimbus</td><td class="fx">notification/infrastructure</td></tr>
+        <tr><td class="uc">Ficheiros</td><td>AWS SDK v2 (S3 + S3Presigner); MinIO no Docker Compose para desenvolvimento</td><td class="fx">shared/infrastructure/storage</td></tr>
+        <tr><td class="uc">Jobs</td><td><code>@Scheduled</code> + ShedLock no PostgreSQL</td><td class="fx">shared/infrastructure/config</td></tr>
+        <tr><td class="uc">Resiliência</td><td>Timeouts de 5 s em todo o cliente HTTP e Resilience4j só nos fornecedores</td><td class="fx">adapters</td></tr>
+        <tr><td class="uc">Documentação</td><td>springdoc-openapi em <code>/swagger-ui.html</code></td><td class="fx">pom.xml</td></tr>
+        <tr><td class="uc">Saúde</td><td>Actuator (<code>/actuator/health</code>) e Micrometer</td><td class="fx">pom.xml</td></tr>
+        <tr><td class="uc">Testes</td><td>JUnit 5, MockMvc e H2 no dia a dia; Testcontainers (PostgreSQL 18 + PostGIS) no CI e na busca; ArchUnit</td><td class="fx">src/test</td></tr>
+        <tr><td class="uc">Local e CI</td><td>Docker Compose (PostGIS, MinIO e API) e GitHub Actions</td><td class="fx">docker-compose.yml, .github/</td></tr>
+        <tr><td class="uc">Infraestrutura</td><td>Terraform, com o estado num bucket S3 e travado com <code>use_lockfile</code>; deploy pelo GitHub Actions com OIDC (sem chaves de acesso guardadas)</td><td class="fx">infra/</td></tr>
+        <tr><td class="uc">Métricas na AWS</td><td>Micrometer com o registo do CloudWatch (<code>micrometer-registry-cloudwatch2</code>)</td><td class="fx">pom.xml</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="aws">
+  <div class="eyebrow">Na AWS</div>
+  <h2>Como fica em produção</h2>
+  <p>A proposta usa a região <code>af-south-1</code> (Cidade do Cabo), a mais próxima de Luanda, com duas zonas de disponibilidade. A API corre em ECS Fargate (ARM64) em sub-redes privadas, atrás de um Application Load Balancer com AWS WAF. O banco é RDS PostgreSQL 18 com PostGIS, em Multi-AZ. Os ficheiros vão da app direto para o S3, e a API só assina as URLs. Não há servidores para gerir nem Redis: os jobs correm dentro da API, com o ShedLock.</p>
+  <h3>Na AWS: produção (proposta)</h3>
+  <div class="sketch" id="aws-producao" role="img" aria-label="AWS, produção: balanceador com WAF, tarefas ECS privadas nas duas zonas, NAT, endpoint do S3 e RDS Multi-AZ"></div>
+  <h3>Na AWS: teste (infra/teste)</h3>
+  <div class="sketch" id="aws-teste" role="img" aria-label="AWS, teste: uma tarefa ECS na sub-rede pública, RDS numa zona, sem NAT nem WAF"></div>
+</section>
+
+<section>
+  <div class="eyebrow">Peças</div>
+  <h2>Cada serviço e o seu custo</h2>
+  <p>Os custos são estimativas de ordem de grandeza para <code>af-south-1</code>, que costuma ser 15 a 25% mais cara do que as regiões dos EUA e da Europa. Antes de decidir, confirma-os no AWS Pricing Calculator. Falta somar o tráfego de saída para a internet.</p>
+  <div class="wide">
+    <table class="grid">
+      <thead><tr><th>Serviço</th><th>Para que serve</th><th>Produção</th><th>Teste</th></tr></thead>
+      <tbody>
+        <tr><td class="uc">ECS Fargate</td><td>Corre a API e os jobs. Escala de 2 a 6 tarefas quando o CPU passa dos 60%.</td><td class="fx">2 tarefas, 1 vCPU e 2 GB, sub-redes privadas · ≈ 70 US$</td><td class="fx">1 tarefa, 0,5 vCPU e 1 GB, IP público · ≈ 18 US$</td></tr>
+        <tr><td class="uc">RDS PostgreSQL 18</td><td>Banco com PostGIS, cifrado com KMS e com restauração para qualquer minuto dos últimos 7 dias.</td><td class="fx">db.t4g.small Multi-AZ, 50 GB gp3 a crescer sozinho · ≈ 75 US$</td><td class="fx">db.t4g.micro numa zona, 20 GB · ≈ 18 US$</td></tr>
+        <tr><td class="uc">Application Load Balancer</td><td>Termina o TLS (ACM, TLS 1.2+), redireciona HTTP para HTTPS e confere a saúde em <code>/actuator/health</code>.</td><td class="fx">≈ 25 US$</td><td class="fx">≈ 22 US$</td></tr>
+        <tr><td class="uc">AWS WAF</td><td>Limites por IP em <code>/auth/*</code> partilhados por todas as tarefas (sem Redis), mais as regras geridas da AWS contra ataques comuns.</td><td class="fx">≈ 35 US$ (com ~30 mi pedidos/mês)</td><td class="fx">não tem</td></tr>
+        <tr><td class="uc">NAT Gateway</td><td>Saída das tarefas privadas para o Twilio, o Brevo, o Firebase e os provedores de login.</td><td class="fx">1 numa zona · ≈ 40 US$</td><td class="fx">não tem: a tarefa usa IP público</td></tr>
+        <tr><td class="uc">IPv4 públicos</td><td>A AWS cobra cada IPv4 público.</td><td class="fx">ALB e NAT · ≈ 11 US$</td><td class="fx">ALB e tarefa · ≈ 11 US$</td></tr>
+        <tr><td class="uc">S3</td><td>Bucket privado com Block Public Access, cifrado, com versões nos comprovativos e acesso da API por endpoint de gateway (grátis).</td><td class="fx">≈ 2 US$</td><td class="fx">≈ 1 US$</td></tr>
+        <tr><td class="uc">Secrets Manager</td><td>Guarda a senha do banco (rodada pelo RDS), a chave do JWT, a chave AES do TOTP, o Twilio, o Firebase e as chaves da Apple.</td><td class="fx">~10 segredos · ≈ 5 US$</td><td class="fx">≈ 5 US$</td></tr>
+        <tr><td class="uc">CloudWatch + SNS</td><td>Logs em JSON, métricas do Micrometer e alarmes por e-mail.</td><td class="fx">logs 30 dias · ≈ 15 US$</td><td class="fx">logs 7 dias · ≈ 3 US$</td></tr>
+        <tr><td class="uc">ECR e Route 53</td><td>Imagens Docker (as últimas 20) e DNS. O domínio <code>.ao</code> é registado no registo angolano e delegado para o Route 53.</td><td class="fx">≈ 3 US$</td><td class="fx">≈ 2 US$</td></tr>
+        <tr><td class="uc"><b>Total</b></td><td></td><td class="num">≈ 280 US$/mês</td><td class="num">≈ 80 US$/mês</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>O ambiente de teste pode ser desligado fora de horas (zero tarefas e o RDS parado). O ALB e o armazenamento continuam a ser cobrados.</p>
+</section>
+
+<section class="cards">
+  <div class="card">
+    <h3>Rede e acessos</h3>
+    <ul>
+      <li>O ALB aceita 443 da internet; as tarefas só aceitam tráfego do ALB; o RDS só aceita 5432 das tarefas.</li>
+      <li>O papel da tarefa só lê os seus segredos e só escreve no bucket da aplicação.</li>
+      <li><code>okuteta.ao</code> aponta para o mesmo ALB, mas só serve <code>/.well-known/*</code> (passkeys e links na app) e a página de reserva dos links.</li>
+      <li>O GitHub Actions entra por OIDC com um papel que só pode enviar imagens para o ECR e atualizar o serviço.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>Deploy sem parar</h3>
+    <ul>
+      <li>Um push na <code>main</code> testa, constrói a imagem ARM64, envia-a para o ECR e atualiza o serviço ECS.</li>
+      <li>O deploy é rolling: uma tarefa nova entra antes de uma antiga sair. O circuit breaker do ECS volta à versão anterior se as novas não ficarem saudáveis.</li>
+      <li>O Flyway corre no arranque, e as migrations são compatíveis com a versão anterior.</li>
+      <li>A produção só recebe um deploy manual, de uma imagem já testada no ambiente de teste.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>Backups e recuperação</h3>
+    <ul>
+      <li>O RDS restaura para qualquer minuto dos últimos 7 dias (RPO de 5 min), e o Multi-AZ troca de zona sozinho em 1 a 2 min.</li>
+      <li>Antes de uma migration arriscada, tira-se um snapshot manual.</li>
+      <li>As versões antigas dos comprovativos no S3 são apagadas depois de 30 dias.</li>
+      <li>Restaurar tudo noutra conta leva menos de 1 h (RTO): Terraform mais o snapshot. O procedimento fica escrito e testado uma vez.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>Alarmes</h3>
+    <ul>
+      <li>Erros 5xx no ALB acima de 1%, ou p95 acima de 500 ms.</li>
+      <li>Menos de 2 tarefas saudáveis.</li>
+      <li>RDS com CPU acima de 80% ou menos de 10 GB livres.</li>
+      <li>Job de slots sem correr em 26 h e outbox com falhas.</li>
+      <li>Orçamento no AWS Budgets: aviso a 80% e a 100% do valor mensal.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Decidido</div>
+  <h2>Escolhas da infraestrutura</h2>
+  <p>Ficou aprovada a coluna "Proposta": <code>af-south-1</code>, 1 NAT, RDS Multi-AZ e WAF no MVP. A computação (Fargate) e o Terraform ficaram como propostos.</p>
+  <div class="wide">
+    <table class="grid">
+      <thead><tr><th>Tema</th><th>Proposta</th><th>Alternativa</th><th>Diferença</th></tr></thead>
+      <tbody>
+        <tr><td>Região</td><td><code>af-south-1</code> (Cidade do Cabo)</td><td><code>eu-west-1</code> (Irlanda)</td><td class="fx">A Irlanda é 15 a 25% mais barata e tem todos os serviços, mas fica mais longe de Luanda. Nenhuma região é em Angola, e a Lei 22/11 pede que a transferência de dados para fora do país passe pela APD em qualquer dos casos.</td></tr>
+        <tr><td>Computação</td><td>ECS Fargate</td><td>EC2 com Docker</td><td class="fx">Uma EC2 é mais barata, mas obriga a gerir o sistema operativo, os patches e a troca de máquinas.</td></tr>
+        <tr><td>Saída para a internet</td><td>1 NAT Gateway</td><td>2 NAT (uma por zona), ou tarefas em sub-redes públicas sem NAT</td><td class="fx">Com 2 NAT, a saída sobrevive à queda de uma zona (+≈ 40 US$). Sem NAT poupa ≈ 40 US$, e as tarefas ficam com IP público, mas fechadas pelo security group.</td></tr>
+        <tr><td>WAF</td><td>No MVP</td><td>Só limites na aplicação</td><td class="fx">Sem o WAF, os limites por IP só funcionam com uma tarefa, ou com Redis (≈ 25 US$).</td></tr>
+        <tr><td>Banco</td><td>RDS Multi-AZ db.t4g.small</td><td>Uma só zona, ou Aurora Serverless v2</td><td class="fx">Numa só zona poupa ≈ 35 US$, mas a queda de uma zona deixa a API parada até restaurar. Neste volume, o Aurora custa mais.</td></tr>
+        <tr><td>Infraestrutura como código</td><td>Terraform, como no Bazza</td><td>AWS CDK</td><td class="fx">O CDK escreve-se em Java ou TypeScript. O Terraform já está provado no Bazza.</td></tr>
+      </tbody>
+    </table>
+  </div>
+<pre class="code">infra/
+├── modules/
+│   ├── network/     <span class="c">VPC, sub-redes, NAT, endpoint S3</span>
+│   ├── database/    <span class="c">RDS, parâmetros, segredo</span>
+│   ├── service/     <span class="c">ECR, ECS, ALB, WAF, alarmes</span>
+│   └── storage/     <span class="c">bucket, ciclo de vida</span>
+├── teste/           <span class="c">≈ 80 US$/mês</span>
+└── producao/        <span class="c">≈ 280 US$/mês</span></pre>
+</section>
+</div>
+
+<!-- ============================ 4. CAPACIDADE ============================ -->
+<div class="part">
+<div class="part-title" id="capacidade"><span class="num">4</span><h2>Capacidade</h2></div>
+
+<section>
+  <p>É uma estimativa de ordem de grandeza, e as suposições estão na segunda coluna para serem ajustadas quando houver dados reais.</p>
+  <div class="wide">
+    <table class="grid">
+      <thead><tr><th>Métrica</th><th>Suposição</th><th>Resultado</th></tr></thead>
+      <tbody>
+        <tr><td>Barbearias</td><td>meta em Luanda, Benguela, Huambo e Lubango</td><td class="num">3.000</td></tr>
+        <tr><td>Barbeiros</td><td>4 por barbearia</td><td class="num">12.000</td></tr>
+        <tr><td>Clientes registados</td><td>meta</td><td class="num">300.000</td></tr>
+        <tr><td>Marcações</td><td>3 por barbeiro por dia pela app</td><td class="num">36 mil/dia</td></tr>
+        <tr><td>Pico de marcações</td><td>sábado ×1,5, com 25% do dia entre as 09:00 e as 10:00</td><td class="num">~4/s</td></tr>
+        <tr><td>Consultas de horários</td><td>15 por marcação</td><td class="num">pico ~60/s</td></tr>
+        <tr><td>Slots guardados</td><td>12.000 barbeiros × 30 dias × 40 slots de 15 min</td><td class="num">~15 mi linhas</td></tr>
+        <tr><td>Geração diária de slots</td><td>um dia novo por barbeiro</td><td class="num">~500 mil inserts/dia</td></tr>
+        <tr><td>Pedidos na API</td><td>~30 por marcação (busca, perfis, agenda)</td><td class="num">pico ~120/s</td></tr>
+        <tr><td>Instâncias</td><td>~250 req/s por instância de 2 vCPU</td><td class="num">1, mais 1 para deploy sem parar</td></tr>
+        <tr><td>Dados no primeiro ano</td><td>13 mi marcações × ~1,5 KB, mais os slots</td><td class="num">&lt; 35 GB</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout">
+    <p><strong>O volume é pequeno.</strong> O que custa é a agenda estar certa: sábado de manhã, com várias pessoas a querer o mesmo barbeiro à mesma hora, slots que têm de ser regenerados sem tocar nos ocupados quando muda o horário, o intervalo ou o fuso, e a conversão entre UTC no banco e a hora local de cada barbearia.</p>
+  </div>
+</section>
+</div>
+
+<!-- ============================ 5. OPERAÇÃO ============================ -->
+<div class="part">
+<div class="part-title" id="operacao"><span class="num">5</span><h2>Operação</h2></div>
+
+<section>
+  <div class="eyebrow">Metas</div>
+  <h2>O que medimos no MVP</h2>
+  <div class="slo">
+    <div><b>99,5%</b><span>disponibilidade mensal da API (3 h 39 min fora por mês)</span></div>
+    <div><b>&lt; 300 ms</b><span>p95 da consulta de horários livres</span></div>
+    <div><b>&lt; 500 ms</b><span>p95 da criação de marcação</span></div>
+    <div><b>&lt; 1 min</b><span>de atraso p99 dos lembretes de 24 h e 1 h</span></div>
+  </div>
+</section>
+
+<section class="cards">
+  <div class="card">
+    <h3>Segurança</h3>
+    <ul>
+      <li>JWT de 15 min e refresh token rotativo: o reuso de um token antigo revoga a sessão inteira.</li>
+      <li>Senhas com Argon2id. 5 senhas erradas bloqueiam o login 15 min, e há limite de pedidos por IP no login e no envio de códigos e links.</li>
+      <li>2FA opcional para todos, e confirmação de 5 min (<code>auth_time</code>) antes de ações sensíveis para todos, incluindo mudar para onde vai o dinheiro da barbearia.</li>
+      <li>Os tokens intermédios (registo social e 2FA) têm público próprio e não valem como sessão.</li>
+      <li>Para marcar e para criar barbearia é preciso ter o telemóvel verificado.</li>
+      <li>Cada pedido confere o papel na barbearia: o dono vê tudo, o barbeiro só a sua agenda e o cliente só as suas marcações.</li>
+      <li>Os uploads só aceitam chaves com o id de quem pediu, e a API confere o tipo pelo conteúdo depois do upload.</li>
+      <li>O login social confere o nonce e o público, e um e-mail não confirmado nunca liga contas.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>Concorrência</h3>
+    <ul>
+      <li>A marcação trava os barbeiros candidatos por ordem de id, e o <code>UPDATE</code> condicional dos slots é a última defesa.</li>
+      <li>Usam <code>FOR UPDATE</code> o refresh token, o código de verificação, o desafio da passkey, o último passo TOTP, a folga sobre marcações, a confirmação do pagamento e o pedido de reembolso.</li>
+      <li>A regeneração de slots trava o barbeiro e nunca apaga um slot ocupado.</li>
+      <li>O resto usa <code>@Version</code> e responde 409.</li>
+      <li>Há um teste com pedidos em paralelo para cada trava (por exemplo, 10 clientes a disputar o último horário).</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>Proteção de dados</h3>
+    <ul>
+      <li>Segue a Lei n.º 22/11 de Angola: a exclusão anonimiza a conta, e o histórico das marcações mantém-se com o nome trocado.</li>
+      <li>Os logs mascaram e-mails e telefones, e o chat também.</li>
+      <li>Os segredos TOTP são cifrados com AES-256-GCM. Os códigos, os tokens dos links e os códigos de recuperação só se guardam como hash.</li>
+      <li>Os comprovativos ficam num bucket privado e só se leem por URL pré-assinada, gerada depois de conferir quem pede.</li>
+      <li>As notificações são guardadas 6 meses, as mensagens 2 anos e os slots passados 7 dias (jobs diários).</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>Observabilidade</h3>
+    <ul>
+      <li><code>/actuator/health</code> confere o PostgreSQL.</li>
+      <li>Logs em JSON com <code>traceId</code>, ligados por <code>LOG_FORMAT=json</code>.</li>
+      <li>Métricas de negócio: <code>okuteta.bookings</code> (por estado), <code>okuteta.refunds</code>, <code>okuteta.push</code> e <code>okuteta.outbox</code>.</li>
+      <li>Há um alerta se o job de slots falhar, porque sem ele o último dia da janela fica sem horários.</li>
+    </ul>
+  </div>
+</section>
+</div>
+
+<!-- ============================ 6. PLANO ============================ -->
+<div class="part">
+<div class="part-title" id="roadmap"><span class="num">6</span><h2>Plano de construção</h2></div>
+
+<section>
+  <div class="eyebrow">Fase 1 · MVP</div>
+  <h2>Passos, um módulo de cada vez</h2>
+  <p>Cada passo termina com migrations, casos de uso, endpoints e testes a passar, e só avança depois de aprovado. A ordem segue as dependências: a marcação precisa da agenda, e a agenda precisa da barbearia.</p>
+  <ol class="steps">
+    <li><div><b>Esqueleto</b><span>Projeto Maven, pacotes <code>ao.okuteta</code>, Flyway (com a pasta só do PostgreSQL), Docker Compose com PostGIS e MinIO, H2 nos testes e Testcontainers no CI, ArchUnit, tratamento de erros (RFC 9457), upload pré-assinado, OpenAPI e CI.</span></div></li>
+    <li><div><b>user: contas e entrada</b><span>Registo, códigos por SMS e WhatsApp, login por senha, por código e por link, Google, Facebook e Apple, sessões, recuperação da senha, perfil e exclusão.</span></div></li>
+    <li><div><b>user: passkeys e 2FA</b><span>Passkeys, app autenticadora, códigos de recuperação, segundo fator no login, confirmação em ações sensíveis e avisos de segurança.</span></div></li>
+    <li><div><b>shop</b><span>Barbearia (com fuso, intervalo, antecedência e faltas), horário, serviços, convites, membros, aprovação pelo administrador e busca com PostGIS.</span></div></li>
+    <li><div><b>schedule</b><span>Horário dos barbeiros, folgas, geração e regeneração dos slots e horários livres.</span></div></li>
+    <li><div><b>booking</b><span>Marcar sem sobreposição com sorteio, aprovar, cancelar, concluir, faltas por barbearia e os jobs de expiração.</span></div></li>
+    <li><div><b>notification</b><span>Caixa da app, push por FCM e lembretes.</span></div></li>
+    <li><div><b>review</b><span>Avaliações duplo-cegas nos dois sentidos, resposta do dono e notas da barbearia, do barbeiro e do cliente.</span></div></li>
+    <li><div><b>payment</b><span>Contas da barbearia, declaração com comprovativo, confirmação, reembolsos com disputa e relatório de receita.</span></div></li>
+    <li><div><b>messaging</b><span>Conversa cliente ↔ barbearia com contactos mascarados e retenção.</span></div></li>
+    <li><div><b>AWS</b><span>Terraform do ambiente de teste e da produção, deploy pelo GitHub Actions, alarmes e um teste de restauração.</span></div></li>
+  </ol>
+</section>
+
+<section>
+  <div class="eyebrow">Depois do MVP</div>
+  <h2>Fases seguintes</h2>
+  <div class="phases">
+    <div class="phase">
+      <div class="tag">Fase 2</div>
+      <div class="users">Receita e confiança</div>
+      <ul>
+        <li>Reagendar sem cancelar (hoje é preciso cancelar e marcar de novo).</li>
+        <li>Lista de espera para horários cheios.</li>
+        <li>Modelo de receita: assinatura da barbearia ou comissão, sobre o registo de pagamentos que já existe.</li>
+        <li>Denúncias e moderação.</li>
+        <li>Exportação dos dados pessoais.</li>
+      </ul>
+    </div>
+    <div class="phase">
+      <div class="tag">Fase 3</div>
+      <div class="users">Escala</div>
+      <ul>
+        <li>Pagamento eletrónico por um agregador angolano, com reembolso automático.</li>
+        <li>Redis para a cache da busca e dos horários, e para os limites com várias instâncias.</li>
+        <li>CDN à frente das fotos públicas (avatares e capas).</li>
+        <li>Réplica de leitura para a busca e a agenda pública.</li>
+        <li>Particionamento mensal das mensagens, das notificações e dos slots.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+</div>
+
+<footer>Okuteta · documento de design · revisão de 27 de outubro de 2026 (decisões 1 a 14 trocadas; nove formas de entrar e 2FA), baseada no design do Bazza.</footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/roughjs@4.6.6/bundled/rough.js"></script>
+<script>
+const MODULES = [
+  { id: "user", name: "Utilizadores", pkg: "ao.okuteta.user", desc: "Conta, sessões, nove formas de entrar, passkeys e 2FA.",
+    tables: [
+      { name: "users", desc: "Uma linha por pessoa: cliente, barbeiro, dono ou administrador.", cols: [
+        ["id","uuid","v7, gerado na aplicação","PK"],["name","varchar(80)",""],["phone","varchar(16)","E.164 +244, móvel, obrigatório","UK"],["phone_verified_at","timestamptz","nulo até ao código"],
+        ["email","varchar(254)","opcional","UK"],["email_verified_at","timestamptz",""],["password_hash","varchar(128)","Argon2id; nulo em conta sem senha"],["avatar_key","varchar(200)","chave no S3"],
+        ["role","varchar(10)","USER | ADMIN"],["status","varchar(12)","ACTIVE | SUSPENDED | DELETED"],["failed_logins","smallint","5 erros → locked_until"],["locked_until","timestamptz",""],
+        ["mfa_enabled_at","timestamptz","nulo = 2FA desligado; opcional para todos"],
+        ["deleted_at","timestamptz","anonimização"],["version","int","@Version"]],
+        idx: ["UNIQUE (phone)", "UNIQUE (email)"] },
+      { name: "refresh_tokens", desc: "Uma sessão por aparelho, com rotação. É também a lista de sessões em /me/sessions.", cols: [
+        ["id","uuid","","PK"],["user_id","uuid","→ users","FK"],["family_id","uuid","reuso revoga a família"],["token_hash","char(64)","SHA-256","UK"],
+        ["device_name","varchar(80)",""],["auth_methods","varchar(60)","amr do login: pwd, sms, whatsapp, link, google, facebook, apple, passkey, totp…"],
+        ["last_used_at","timestamptz",""],["expires_at","timestamptz","30 dias"],["revoked_at","timestamptz",""],["replaced_by","uuid",""]],
+        idx: ["(user_id)"] },
+      { name: "verification_codes", desc: "Códigos de 6 dígitos (SMS, WhatsApp, e-mail) e tokens dos links por e-mail.", cols: [
+        ["id","uuid","","PK"],["user_id","uuid","→ users, nulo antes da conta","FK"],["target","varchar(254)","telemóvel ou e-mail"],
+        ["channel","varchar(8)","SMS | WHATSAPP | EMAIL"],["purpose","varchar(10)","PHONE | EMAIL | RESET | LOGIN | LINK | MFA"],
+        ["code_hash","char(64)","SHA-256 do código ou do token de 32 bytes do link"],["attempts","smallint","máximo 5"],["expires_at","timestamptz","10 min; link 15 min"],["consumed_at","timestamptz",""]],
+        idx: ["(target, purpose, consumed_at)", "UNIQUE (code_hash) — para encontrar o link"] },
+      { name: "user_identities", desc: "Ligação com a conta Google, Facebook ou Apple.", cols: [
+        ["id","uuid","","PK"],["user_id","uuid","→ users","FK"],["provider","varchar(10)","GOOGLE | FACEBOOK | APPLE"],["subject","varchar(255)","sub ou id do Facebook"],
+        ["email","varchar(254)","do provedor, pode faltar"],["email_verified","boolean","só um e-mail verificado liga contas"]],
+        idx: ["UNIQUE (provider, subject)"] },
+      { name: "passkeys", desc: "Credenciais WebAuthn, uma por aparelho ou gestor de senhas.", cols: [
+        ["id","uuid","","PK"],["user_id","uuid","→ users","FK"],["credential_id","varbinary(1023)","","UK"],["public_key","varbinary(2048)","COSE"],
+        ["sign_count","bigint","detetar credenciais copiadas"],["aaguid","uuid","modelo do autenticador"],["transports","varchar(60)","internal, hybrid…"],
+        ["backup_eligible","boolean","sincronizada (iCloud, Google)"],["name","varchar(60)","escolhido pela pessoa"],["last_used_at","timestamptz",""]],
+        idx: ["(user_id)"] },
+      { name: "webauthn_challenges", desc: "Desafios de uso único, lidos com FOR UPDATE.", cols: [
+        ["id","uuid","","PK"],["user_id","uuid","nulo no login sem utilizador","FK"],["purpose","varchar(10)","REGISTER | LOGIN | MFA | STEP_UP"],
+        ["challenge_hash","char(64)","","UK"],["expires_at","timestamptz","5 min"],["consumed_at","timestamptz",""]],
+        idx: ["(expires_at)"] },
+      { name: "totp_credentials", desc: "App autenticadora. Uma por conta.", cols: [
+        ["user_id","uuid","→ users","PK"],["secret_enc","varbinary(64)","AES-256-GCM, chave em variável de ambiente"],
+        ["confirmed_at","timestamptz","nulo até ao primeiro código certo"],["last_used_step","bigint","recusa o mesmo código duas vezes"]],
+        idx: [] },
+      { name: "recovery_codes", desc: "10 códigos de uso único, gerados quando o 2FA é ligado.", cols: [
+        ["id","uuid","","PK"],["user_id","uuid","→ users","FK"],["code_hash","char(64)",""],["used_at","timestamptz",""]],
+        idx: ["(user_id)"] },
+    ]},
+  { id: "shop", name: "Barbearias", pkg: "ao.okuteta.shop", desc: "Barbearia e as suas regras de agenda, horário, serviços, equipa, convites e aprovação.",
+    tables: [
+      { name: "shops", desc: "Só aparece na busca quando está APPROVED. Cada barbearia define o fuso, o intervalo, a antecedência e as faltas.", cols: [
+        ["id","uuid","","PK"],["owner_id","uuid","→ users","FK"],["name","varchar(80)",""],["slug","varchar(90)","endereço público","UK"],["description","varchar(500)",""],
+        ["phone","varchar(16)","público"],["address","varchar(200)",""],["city","varchar(60)",""],["province","varchar(40)",""],["latitude","numeric(9,6)",""],["longitude","numeric(9,6)",""],
+        ["location","geography(Point,4326)","só no PostgreSQL: gerada de latitude e longitude"],
+        ["cover_key","varchar(200)","chave no S3"],["status","varchar(16)","DRAFT | PENDING_REVIEW | APPROVED | REJECTED | SUSPENDED"],["review_note","varchar(300)","motivo da recusa ou suspensão"],
+        ["confirmation_mode","varchar(8)","INSTANT | MANUAL"],["cancel_notice_hours","smallint","0 a 48, por omissão 2"],
+        ["timezone","varchar(40)","por omissão Africa/Luanda"],["slot_minutes","smallint","10 | 15 | 20 | 30, por omissão 15"],
+        ["min_notice_minutes","smallint","por omissão 30"],["max_advance_days","smallint","1 a 90, por omissão 30"],
+        ["no_show_limit","smallint","0 desliga, por omissão 3"],["no_show_window_days","smallint","por omissão 90"],
+        ["version","int","@Version"],["deleted_at","timestamptz",""]],
+        idx: ["UNIQUE (slug)", "GIST (location) — migration só do PostgreSQL", "(status, created_at)"] },
+      { name: "shop_opening_hours", desc: "Horário semanal, com turnos, no fuso da barbearia.", cols: [
+        ["shop_id","uuid","→ shops","PK"],["weekday","smallint","1 = segunda … 7 = domingo","PK"],["opens_at","time","","PK"],["closes_at","time","> opens_at"]],
+        idx: ["CHECK (closes_at > opens_at)"] },
+      { name: "shop_members", desc: "Quem trabalha na barbearia. O dono também é membro. Quem volta reativa a mesma linha.", cols: [
+        ["id","uuid","","PK"],["shop_id","uuid","→ shops","FK"],["user_id","uuid","→ users","FK"],["role","varchar(8)","OWNER | BARBER"],["display_name","varchar(60)",""],
+        ["bio","varchar(300)",""],["bookable","boolean","atende marcações"],["status","varchar(8)","ACTIVE | REMOVED"],["removed_at","timestamptz",""],["version","int","@Version"]],
+        idx: ["UNIQUE (shop_id, user_id)"] },
+      { name: "shop_invites", desc: "Convite pelo telemóvel, válido 7 dias.", cols: [
+        ["id","uuid","","PK"],["shop_id","uuid","→ shops","FK"],["phone","varchar(16)","E.164"],["pending_phone","varchar(16)","= phone enquanto PENDING, nulo depois"],["invited_by","uuid","→ users","FK"],
+        ["status","varchar(10)","PENDING | ACCEPTED | DECLINED | REVOKED | EXPIRED"],["expires_at","timestamptz",""],["answered_at","timestamptz",""]],
+        idx: ["UNIQUE (shop_id, pending_phone)", "(pending_phone)"] },
+      { name: "services", desc: "O que a barbearia oferece, com duração e preço.", cols: [
+        ["id","uuid","","PK"],["shop_id","uuid","→ shops","FK"],["name","varchar(60)","Corte, Barba, Tranças…"],["description","varchar(200)",""],
+        ["duration_min","smallint","5 a 480, múltiplo de 5"],["price_cents","bigint","em cêntimos de kwanza"],["currency","char(3)","AOA"],["active","boolean",""],["sort_order","smallint",""],["version","int","@Version"]],
+        idx: ["(shop_id, active)"] },
+      { name: "member_services", desc: "Que serviços cada barbeiro faz.", cols: [
+        ["member_id","uuid","→ shop_members","PK"],["service_id","uuid","→ services","PK"]],
+        idx: [] },
+    ]},
+  { id: "schedule", name: "Agenda", pkg: "ao.okuteta.schedule", desc: "Quando cada barbeiro trabalha, e os slots gerados a partir disso.",
+    tables: [
+      { name: "working_hours", desc: "Horário semanal do barbeiro, dentro do da barbearia.", cols: [
+        ["id","uuid","","PK"],["member_id","uuid","→ shop_members","FK"],["weekday","smallint","1 a 7"],["starts_at","time",""],["ends_at","time","> starts_at"]],
+        idx: ["(member_id, weekday)"] },
+      { name: "time_off", desc: "Folgas, férias e pausas pontuais.", cols: [
+        ["id","uuid","","PK"],["member_id","uuid","→ shop_members","FK"],["starts_at","timestamptz",""],["ends_at","timestamptz",""],["reason","varchar(100)",""],["created_by","uuid","→ users","FK"]],
+        idx: ["(member_id, starts_at)"] },
+      { name: "member_slots", desc: "Um slot por intervalo de trabalho do barbeiro, gerado até max_advance_days. Fora do horário e nas folgas não há slots.", cols: [
+        ["member_id","uuid","→ shop_members","PK"],["starts_at","timestamptz","","PK"],["ends_at","timestamptz","início + slot_minutes"],["booking_id","uuid","nulo = livre","FK"]],
+        idx: ["(booking_id)", "(member_id, booking_id, starts_at)"] },
+    ]},
+  { id: "booking", name: "Marcações", pkg: "ao.okuteta.booking", desc: "Marcação de um ou mais serviços com um barbeiro, ocupando slots seguidos.",
+    tables: [
+      { name: "bookings", desc: "Guarda cópias do nome da barbearia e do barbeiro para listar sem chamar outros módulos.", cols: [
+        ["id","uuid","","PK"],["shop_id","uuid","→ shops","FK"],["member_id","uuid","barbeiro atribuído","FK"],["customer_id","uuid","→ users","FK"],["any_member","boolean","sem preferência: sorteado"],
+        ["shop_name","varchar(80)","cópia"],["member_name","varchar(60)","cópia"],
+        ["status","varchar(10)","PENDING | CONFIRMED | REJECTED | CANCELLED | COMPLETED | NO_SHOW | EXPIRED"],
+        ["starts_at","timestamptz",""],["ends_at","timestamptz","início + soma das durações"],["total_price_cents","bigint",""],["currency","char(3)","AOA"],
+        ["customer_note","varchar(300)",""],["pending_expires_at","timestamptz","MANUAL: o que vier primeiro entre 2 h e o início"],
+        ["cancelled_by","varchar(8)","CUSTOMER | SHOP | SYSTEM"],["cancel_reason","varchar(300)",""],["completed_at","timestamptz",""],
+        ["idempotency_key","varchar(64)","único por cliente"],["version","int","@Version"]],
+        idx: ["UNIQUE (customer_id, idempotency_key)", "(shop_id, starts_at)", "(customer_id, starts_at)", "(shop_id, customer_id, status, starts_at) — contar faltas", "(status, pending_expires_at)"] },
+      { name: "booking_services", desc: "Os serviços tal como estavam no momento da marcação.", cols: [
+        ["booking_id","uuid","→ bookings","PK"],["position","smallint","ordem","PK"],["service_id","uuid","→ services","FK"],["name","varchar(60)","cópia"],["duration_min","smallint","cópia"],["price_cents","bigint","cópia"]],
+        idx: [] },
+      { name: "booking_status_history", desc: "Cada mudança de estado, para resolver disputas.", cols: [
+        ["id","uuid","","PK"],["booking_id","uuid","→ bookings","FK"],["from_status","varchar(10)",""],["to_status","varchar(10)",""],["actor_id","uuid","nulo quando é o sistema"],["reason","varchar(300)",""]],
+        idx: ["(booking_id, created_at)"] },
+    ]},
+  { id: "review", name: "Avaliações", pkg: "ao.okuteta.review", desc: "Duplo-cego nos dois sentidos: o cliente avalia a barbearia e o barbeiro, e o barbeiro avalia o cliente.",
+    tables: [
+      { name: "reviews", desc: "Até duas por marcação concluída, uma por sentido. Fica PENDING até as duas existirem ou passarem 14 dias.", cols: [
+        ["id","uuid","","PK"],["booking_id","uuid","→ bookings","FK"],["direction","varchar(18)","CUSTOMER_TO_SHOP | SHOP_TO_CUSTOMER"],
+        ["shop_id","uuid","",""],["member_id","uuid","",""],["customer_id","uuid","",""],["author_id","uuid","→ users","FK"],
+        ["author_name","varchar(60)","cópia; \"Utilizador removido\" depois da exclusão"],["rating","smallint","1 a 5"],["comment","varchar(1000)",""],
+        ["reply","varchar(1000)","resposta do dono (só CUSTOMER_TO_SHOP)"],["replied_at","timestamptz",""],
+        ["status","varchar(10)","PENDING | PUBLISHED | HIDDEN"],["published_at","timestamptz",""],["hidden_reason","varchar(300)",""]],
+        idx: ["UNIQUE (booking_id, direction)", "(shop_id, status, published_at)", "(member_id, status, published_at)", "(customer_id, status, published_at)", "(status, created_at) — prazo de 14 dias"] },
+      { name: "rating_stats", desc: "Nota recalculada a partir das publicadas, sem somas acumuladas.", cols: [
+        ["subject_id","uuid","barbearia, barbeiro ou cliente","PK"],["subject_type","varchar(8)","SHOP | MEMBER | CUSTOMER"],["ratings_count","int",""],["rating_avg","numeric(3,2)",""]],
+        idx: [] },
+    ]},
+  { id: "notification", name: "Notificações", pkg: "ao.okuteta.notification", desc: "Caixa da app e push. A própria tabela serve de fila.",
+    tables: [
+      { name: "notifications", desc: "Gravada na transação do evento e enviada por um job.", cols: [
+        ["id","uuid","","PK"],["user_id","uuid","→ users","FK"],["type","varchar(40)","BOOKING_CONFIRMED…"],["title","varchar(80)",""],["body","varchar(300)",""],
+        ["data","text","JSON só com ids"],["dedupe_key","varchar(100)","ex.: reminder:{id}:24h","UK"],["read_at","timestamptz",""],
+        ["push_status","varchar(8)","PENDING | SENT | FAILED | SKIPPED"],["push_attempts","smallint","máximo 5"],["next_push_at","timestamptz",""]],
+        idx: ["(user_id, created_at)", "(push_status, next_push_at)"] },
+      { name: "device_tokens", desc: "Um token FCM por aparelho.", cols: [
+        ["id","uuid","","PK"],["user_id","uuid","→ users","FK"],["token","varchar(255)","","UK"],["platform","varchar(8)","ANDROID | IOS"],["last_seen_at","timestamptz",""]],
+        idx: ["(user_id)"] },
+    ]},
+  { id: "payment", name: "Pagamentos", pkg: "ao.okuteta.payment", desc: "O cliente paga direto à barbearia, e a plataforma regista o pagamento e o reembolso.",
+    tables: [
+      { name: "shop_payment_accounts", desc: "Onde a barbearia recebe. Desativar e voltar a ativar usa a mesma linha.", cols: [
+        ["id","uuid","","PK"],["shop_id","uuid","→ shops","FK"],["method","varchar(20)","MULTICAIXA_EXPRESS | UNITEL_MONEY | AFRIMONEY | BANK_TRANSFER"],
+        ["account_ref","varchar(40)","telemóvel ou IBAN"],["holder_name","varchar(80)",""],["active","boolean",""]],
+        idx: ["UNIQUE (shop_id, method)"] },
+      { name: "booking_payments", desc: "Um por marcação.", cols: [
+        ["id","uuid","","PK"],["booking_id","uuid","→ bookings","UK"],["shop_id","uuid","",""],["method","varchar(20)","CASH | MULTICAIXA_EXPRESS | UNITEL_MONEY | AFRIMONEY | BANK_TRANSFER"],
+        ["amount_cents","bigint","cópia da marcação"],["currency","char(3)","AOA"],["status","varchar(10)","PENDING | DECLARED | RECEIVED | DISPUTED | CANCELLED | REFUNDED"],
+        ["proof_key","varchar(200)","comprovativo no S3"],["declared_at","timestamptz",""],["received_at","timestamptz",""],["received_by","uuid","→ users","FK"],["version","int","@Version"]],
+        idx: ["(shop_id, status, received_at)"] },
+      { name: "refund_requests", desc: "Um por pagamento, sempre do valor pago.", cols: [
+        ["id","uuid","","PK"],["payment_id","uuid","→ booking_payments","UK"],["booking_id","uuid","",""],["amount_cents","bigint","= valor pago"],
+        ["status","varchar(10)","REQUESTED | SENT | CONFIRMED | DISPUTED"],["proof_key","varchar(200)","comprovativo da devolução"],
+        ["sent_at","timestamptz",""],["confirmed_at","timestamptz","pelo cliente, ou 7 dias depois de SENT"],["resolution_note","varchar(300)","decisão do administrador"],["version","int","@Version"]],
+        idx: ["(status, sent_at)"] },
+    ]},
+  { id: "messaging", name: "Mensagens", pkg: "ao.okuteta.messaging", desc: "Conversa entre o cliente e a barbearia, com contactos mascarados; do lado da barbearia, respondem o dono e os barbeiros.",
+    tables: [
+      { name: "conversations", desc: "Uma por cliente e barbearia.", cols: [
+        ["id","uuid","","PK"],["shop_id","uuid","→ shops","FK"],["customer_id","uuid","→ users","FK"],["last_message_at","timestamptz",""],
+        ["customer_read_at","timestamptz","nunca recua"],["shop_read_at","timestamptz","nunca recua"],["closed_at","timestamptz",""]],
+        idx: ["UNIQUE (shop_id, customer_id)", "(shop_id, last_message_at)"] },
+      { name: "messages", desc: "Texto até 2000 caracteres, gravado já mascarado.", cols: [
+        ["id","uuid","","PK"],["conversation_id","uuid","→ conversations","FK"],["sender_id","uuid","→ users","FK"],["sender_side","varchar(8)","CUSTOMER | SHOP"],
+        ["body","varchar(2000)","telefones e e-mails trocados por •••"],["client_message_id","uuid","contra duplicados"]],
+        idx: ["UNIQUE (sender_id, client_message_id)", "(conversation_id, created_at)"] },
+    ]},
+  { id: "shared", name: "Infraestrutura comum", pkg: "ao.okuteta.shared", desc: "Eventos para fora da aplicação, uploads e trava dos jobs.",
+    tables: [
+      { name: "outbox_events", desc: "Gravado na mesma transação e entregue por um job.", cols: [
+        ["id","uuid","","PK"],["event_type","varchar(60)",""],["aggregate_id","uuid",""],["payload","text","JSON"],["attempts","smallint","máximo 5"],
+        ["next_attempt_at","timestamptz",""],["published_at","timestamptz",""],["last_error","varchar(500)",""]],
+        idx: ["(published_at, next_attempt_at)"] },
+      { name: "shedlock", desc: "Garante que cada job corre numa só instância.", cols: [
+        ["name","varchar(64)","","PK"],["lock_until","timestamptz",""],["locked_at","timestamptz",""],["locked_by","varchar(255)",""]],
+        idx: [] },
+    ]},
+];
+
+const USECASES = {
+  user: [
+    ["RegisterUser","","POST /auth/register","Visitante","Cria a conta com nome, telemóvel (+244, móvel, conferido com libphonenumber), e-mail opcional e senha opcional (Argon2id), e envia o código pelo canal escolhido (SMS ou WhatsApp)."],
+    ["SendPhoneCode","","POST /auth/phone/code","Visitante","Reenvia o código por SMS ou WhatsApp (válido 10 min; 1 por minuto e 5 por dia)."],
+    ["VerifyPhone","","POST /auth/phone/verify","Visitante","Confere o código (até 5 tentativas), marca o telemóvel como verificado e devolve a sessão."],
+    ["LoginWithPassword","","POST /auth/login","Visitante","Entra com o e-mail ou o telemóvel verificado e a senha. 5 erros bloqueiam 15 min. Com 2FA ligado, devolve um `mfaToken` em vez da sessão."],
+    ["RequestLoginCode","","POST /auth/code","Visitante","Envia um código de login por SMS ou WhatsApp para um telemóvel verificado +244. A resposta é igual com ou sem conta."],
+    ["LoginWithCode","","POST /auth/code/verify","Visitante","Confere o código e devolve a sessão, ou o `mfaToken` com 2FA ligado."],
+    ["RequestLoginLink","","POST /auth/link","Visitante","Envia para um e-mail confirmado um link de uso único, válido 15 min, que abre a app. No máximo 3 por hora."],
+    ["LoginWithLink","","POST /auth/link/verify","Visitante","A app envia o token do link por POST. Abrir o link (GET) não o consome."],
+    ["LoginWithGoogle","","POST /auth/google","Visitante","Valida o idToken com as chaves da Google (público e nonce). Uma conta nova recebe um token de registo de 15 min (`aud: okuteta-signup`)."],
+    ["LoginWithFacebook","","POST /auth/facebook","Visitante","Confere o access token na Graph API (`debug_token`, `/me`) ou valida o JWT do Limited Login no iOS."],
+    ["LoginWithApple","","POST /auth/apple","Visitante","Valida o identityToken com as chaves da Apple e confere o nonce."],
+    ["CompleteSocialSignup","","POST /auth/social/complete","Visitante com token de registo","Pede o telemóvel (obrigatório) e, se quiser, uma senha, e envia o código."],
+    ["StartPasskeyLogin","","POST /auth/passkey/options","Visitante","Cria um desafio de uso único (5 min) para credencial descoberta."],
+    ["FinishPasskeyLogin","","POST /auth/passkey/verify","Visitante","Confere a assinatura, a origem, a verificação do utilizador e o contador. Devolve a sessão sem segundo fator."],
+    ["SendMfaCode","","POST /auth/mfa/code","Visitante com mfaToken","Envia o código do segundo fator por SMS, WhatsApp ou e-mail, num canal diferente do primeiro."],
+    ["VerifyMfa","","POST /auth/mfa/verify","Visitante com mfaToken","Aceita um código TOTP, SMS, WhatsApp, de e-mail ou de recuperação, ou uma passkey, e devolve a sessão com `amr` e `auth_time`."],
+    ["StepUp","","POST /auth/step-up","Utilizador","Confirma de novo com a senha, uma passkey, a app ou um código, e devolve um JWT com `auth_time` de agora, válido 5 min para ações sensíveis."],
+    ["RefreshSession","","POST /auth/refresh","Utilizador","Roda o refresh token sem pedir o segundo fator. O reuso de um token antigo revoga a família inteira."],
+    ["Logout","","POST /auth/logout","Utilizador","Revoga a sessão do aparelho."],
+    ["ListSessions","","GET /me/sessions","Utilizador","Lista os aparelhos com sessão, os métodos usados e o último uso."],
+    ["RevokeSession","","DELETE /me/sessions/{id}","Utilizador","Termina a sessão de outro aparelho."],
+    ["RequestPasswordReset","","POST /auth/password/code","Visitante","Envia um código por SMS, WhatsApp ou e-mail. A resposta é igual com ou sem conta."],
+    ["ResetPassword","","POST /auth/password/reset","Visitante","Troca a senha e encerra todas as sessões. Com 2FA ligado, pede também o segundo fator."],
+    ["StartTotpEnrollment","","POST /me/mfa/totp","Utilizador, com confirmação","Gera o segredo e devolve o `otpauth://` para o QR code."],
+    ["ConfirmTotpEnrollment","","POST /me/mfa/totp/confirm","Utilizador","Confere o primeiro código, liga o 2FA e devolve 10 códigos de recuperação, mostrados uma única vez."],
+    ["RegenerateRecoveryCodes","","POST /me/mfa/recovery-codes","Utilizador, com confirmação","Invalida os códigos antigos e gera 10 novos."],
+    ["DisableMfa","","DELETE /me/mfa","Utilizador, com confirmação","Desliga o 2FA e apaga o TOTP e os códigos de recuperação."],
+    ["StartPasskeyRegistration","","POST /me/passkeys/options","Utilizador, com confirmação","Cria o desafio de registo, excluindo as credenciais que a pessoa já tem."],
+    ["FinishPasskeyRegistration","","POST /me/passkeys","Utilizador","Confere a atestação e guarda a passkey com o nome escolhido."],
+    ["ListPasskeys","","GET /me/passkeys","Utilizador","Mostra o nome, a data de criação e o último uso de cada passkey."],
+    ["RenamePasskey","","PATCH /me/passkeys/{id}","Utilizador","Muda o nome da passkey."],
+    ["DeletePasskey","","DELETE /me/passkeys/{id}","Utilizador, com confirmação","Apaga a passkey, mas nunca a última forma de entrar."],
+    ["LinkSocialIdentity","","POST /me/identities/{provider}","Utilizador, com confirmação","Liga uma conta Google, Facebook ou Apple, que não pode estar ligada a outra pessoa."],
+    ["UnlinkSocialIdentity","","DELETE /me/identities/{provider}","Utilizador, com confirmação","Desliga a conta social, mas nunca a última forma de entrar."],
+    ["GetMyProfile","","GET /me","Utilizador","Devolve a conta, as formas de entrar, o estado do 2FA, as barbearias onde é dono ou barbeiro e os convites pendentes."],
+    ["UpdateProfile","","PATCH /me","Utilizador","Altera o nome. Trocar o telemóvel ou o e-mail pede confirmação e um código novo."],
+    ["SetAvatar","","PUT /me/avatar","Utilizador","Recebe a key do upload e confere que é JPG ou PNG até 5 MB."],
+    ["VerifyEmail","","POST /me/email/verify","Utilizador","Confirma o e-mail com um código."],
+    ["ChangePassword","","PUT /me/password","Utilizador, com confirmação","Define ou troca a senha."],
+    ["DeleteAccount","","DELETE /me","Utilizador, com confirmação","Anonimiza a conta e publica `UserAccountDeleted`. Um dono com barbearia ativa tem de a fechar primeiro."],
+    ["SecurityEventListener","evento","LoginFromNewDevice, MfaChanged, RecoveryCodeUsed","Sistema","Envia um aviso na app e um e-mail."],
+    ["PurgeExpiredChallenges","job","diário","Sistema","Apaga os códigos e os desafios WebAuthn expirados há mais de 1 dia."],
+  ],
+  shop: [
+    ["CreateShop","","POST /shops","Utilizador verificado","Cria a barbearia em DRAFT e o dono como membro OWNER."],
+    ["UpdateShop","","PATCH /shops/{id}","Dono","Altera nome, morada, coordenadas, modo de confirmação, prazo de cancelamento, fuso, intervalo dos slots, antecedência e regra de faltas. Mudar o fuso ou o intervalo publica `ShopScheduleChanged`."],
+    ["SetShopCover","","PUT /shops/{id}/cover","Dono","Recebe a key do upload da foto de capa."],
+    ["SetOpeningHours","","PUT /shops/{id}/opening-hours","Dono","Define o horário semanal, com turnos (por exemplo 08:00–12:30 e 14:00–19:00)."],
+    ["SubmitShopForReview","","POST /shops/{id}/submit","Dono","Exige morada, horário, um serviço e um barbeiro que atende; a barbearia passa a PENDING_REVIEW."],
+    ["ListPendingShops","","GET /admin/shops?status=PENDING_REVIEW","Administrador","Lista a fila de aprovação, das mais antigas para as mais recentes."],
+    ["ApproveShop","","POST /admin/shops/{id}/approve","Administrador","Passa a APPROVED e entra na busca. Publica `ShopApproved`."],
+    ["RejectShop","","POST /admin/shops/{id}/reject","Administrador","Passa a REJECTED com motivo. O dono corrige e volta a submeter."],
+    ["SuspendShop","","POST /admin/shops/{id}/suspend","Administrador","Sai da busca. `ShopSuspended` cancela as marcações futuras."],
+    ["SearchShops","","GET /shops?lat=&lng=&raio=&q=","Visitante","Faz a query PostGIS: barbearias aprovadas dentro do raio, ordenadas pela distância, com a nota e o preço mínimo."],
+    ["GetShop","","GET /shops/{id}","Visitante","Mostra o perfil público: horário, serviços, barbeiros, nota, contas de pagamento e regra de cancelamento."],
+    ["CreateService","","POST /shops/{id}/services","Dono","Cria um serviço com nome, duração (múltiplo de 5 min) e preço em kwanzas."],
+    ["UpdateService","","PATCH /shops/{id}/services/{serviceId}","Dono","O novo preço e a nova duração valem só para marcações novas."],
+    ["DeactivateService","","DELETE /shops/{id}/services/{serviceId}","Dono","Esconde o serviço. As marcações existentes mantêm-se."],
+    ["InviteBarber","","POST /shops/{id}/invites","Dono","Convida pelo telemóvel, por 7 dias. Quem já tem conta recebe um aviso."],
+    ["RevokeInvite","","DELETE /shops/{id}/invites/{inviteId}","Dono","Cancela um convite pendente."],
+    ["ListMyInvites","","GET /me/invites","Utilizador","Lista os convites para o telemóvel verificado da conta."],
+    ["AcceptInvite","","POST /invites/{id}/accept","Convidado","Torna-se membro BARBER (ou reativa a linha de quem já esteve). O telemóvel verificado da conta tem de ser o do convite."],
+    ["DeclineInvite","","POST /invites/{id}/decline","Convidado","Recusa o convite."],
+    ["UpdateMember","","PATCH /shops/{id}/members/{memberId}","Dono ou o próprio","Altera o nome de apresentação, a bio e se atende marcações."],
+    ["SetMemberServices","","PUT /shops/{id}/members/{memberId}/services","Dono","Define os serviços que este barbeiro faz."],
+    ["RemoveMember","","DELETE /shops/{id}/members/{memberId}","Dono, ou o próprio para sair","Passa a REMOVED. `MemberRemoved` cancela as marcações futuras e apaga os slots. O dono não sai."],
+    ["ExpireInvites","job","diário","Sistema","Convites PENDING com mais de 7 dias passam a EXPIRED."],
+    ["OnUserAccountDeleted","evento","UserAccountDeleted","Sistema","Remove a pessoa das barbearias onde é barbeiro."],
+  ],
+  schedule: [
+    ["SetWorkingHours","","PUT /members/{id}/working-hours","Barbeiro ou dono","Define o horário semanal (dentro do da barbearia) e regenera os slots livres. Responde 409 se uma marcação ficar fora do novo horário."],
+    ["AddTimeOff","","POST /members/{id}/time-off","Barbeiro ou dono","Marca folga, férias ou pausa e apaga os slots livres do período. Responde 409 se houver marcações no período."],
+    ["RemoveTimeOff","","DELETE /members/{id}/time-off/{timeOffId}","Barbeiro ou dono","Volta a gerar os slots do período."],
+    ["ListTimeOff","","GET /members/{id}/time-off?de=&ate=","Barbeiro ou dono","Lista as folgas no período."],
+    ["GetAvailability","","GET /shops/{id}/availability?data=&servicos=&barbeiro=","Visitante","Lê os slots livres do dia e devolve os inícios com slots seguidos suficientes para a soma das durações, respeitando a antecedência mínima. Sem barbeiro, mostra a união dos que fazem os serviços."],
+    ["ReserveSlots","público","—","booking","Ocupa os slots do intervalo com `UPDATE … WHERE booking_id IS NULL` e confere o número de linhas. Se faltar alguma, a marcação falha com 409."],
+    ["GenerateSlots","job","diário","Sistema","Gera os slots do dia que entra na janela (`max_advance_days`) para cada barbeiro, no fuso da barbearia."],
+    ["PurgePastSlots","job","diário","Sistema","Apaga os slots com mais de 7 dias."],
+    ["OnBookingEnded","evento","BookingCancelled, BookingRejected, BookingExpired","Sistema","Liberta os slots (`booking_id = NULL`)."],
+    ["OnShopScheduleChanged","evento","ShopScheduleChanged","Sistema","Regenera os slots livres de todos os barbeiros da barbearia com o novo intervalo ou fuso, sem tocar nos ocupados."],
+    ["OnMemberRemoved","evento","MemberRemoved","Sistema","Apaga os slots futuros do barbeiro."],
+  ],
+  booking: [
+    ["CreateBooking","","POST /shops/{id}/bookings","Cliente verificado","Recebe os serviços, o início, o barbeiro (ou nenhum) e o método de pagamento. Trava os candidatos por ordem de id, sorteia um com os slots livres, chama `ReserveSlots` e cria CONFIRMED (INSTANT) ou PENDING (MANUAL). Aceita `Idempotency-Key`. Recusa se o cliente atingiu o limite de faltas dessa barbearia."],
+    ["GetBooking","","GET /bookings/{id}","Cliente, barbeiro ou dono","Mostra o detalhe com os serviços e preços copiados. Para a barbearia, inclui a nota do cliente."],
+    ["ListMyBookings","","GET /me/bookings?estado=","Cliente","Lista as próximas e as passadas."],
+    ["ListShopAgenda","","GET /shops/{id}/agenda?data=&barbeiro=","Dono ou barbeiro","Mostra a agenda do dia: o barbeiro vê só a sua, o dono vê todas."],
+    ["ApproveBooking","","POST /bookings/{id}/approve","Dono ou barbeiro atribuído","Passa de PENDING a CONFIRMED."],
+    ["RejectBooking","","POST /bookings/{id}/reject","Dono ou barbeiro atribuído","Passa de PENDING a REJECTED, com motivo, e liberta os slots."],
+    ["CancelBookingByCustomer","","POST /bookings/{id}/cancel","Cliente","Cancela até `cancel_notice_hours` antes do início. Depois disso responde 409 e só a barbearia cancela."],
+    ["CancelBookingByShop","","POST /shops/{id}/bookings/{bookingId}/cancel","Dono ou barbeiro atribuído","Cancela a qualquer momento antes do início, com motivo obrigatório."],
+    ["CompleteBooking","","POST /bookings/{id}/complete","Dono ou barbeiro atribuído","A partir da hora de início, passa a COMPLETED e publica `BookingCompleted`."],
+    ["MarkNoShow","","POST /bookings/{id}/no-show","Dono ou barbeiro atribuído","15 min depois do início, passa a NO_SHOW e conta para o limite de faltas dessa barbearia."],
+    ["ExpirePendingBookings","job","a cada minuto","Sistema","Marcações PENDING sem resposta até `pending_expires_at` passam a EXPIRED."],
+    ["AutoCompleteBookings","job","de hora em hora","Sistema","Marcações CONFIRMED que acabaram há mais de 12 h passam a COMPLETED."],
+    ["GetBookingParticipants","público","—","review, payment, messaging","Devolve o cliente, o barbeiro, a barbearia, o estado e a data de conclusão."],
+    ["OnMemberRemoved","evento","MemberRemoved","Sistema","Cancela (SYSTEM) as marcações futuras do barbeiro."],
+    ["OnShopSuspended","evento","ShopSuspended","Sistema","Cancela as marcações futuras da barbearia."],
+    ["OnUserAccountDeleted","evento","UserAccountDeleted","Sistema","Cancela as marcações futuras do cliente."],
+  ],
+  review: [
+    ["ReviewShop","","POST /bookings/{id}/review","Cliente","Até 14 dias depois de COMPLETED, avalia a barbearia e o barbeiro de 1 a 5, com comentário. Fica escondida até a barbearia avaliar ou o prazo acabar."],
+    ["ReviewCustomer","","POST /bookings/{id}/customer-review","Barbeiro atribuído ou dono","Avalia o cliente de 1 a 5, com comentário. Quando os dois lados avaliaram, publica as duas avaliações."],
+    ["PublishExpiredReviews","job","de hora em hora","Sistema","Publica as avaliações cujo prazo de 14 dias acabou, mesmo sem a do outro lado."],
+    ["ReplyToReview","","POST /reviews/{id}/reply","Dono","Dá uma resposta pública a uma avaliação publicada da barbearia."],
+    ["ListShopReviews","","GET /shops/{id}/reviews","Visitante","Lista as publicadas, das mais recentes para as mais antigas."],
+    ["ListMemberReviews","","GET /members/{id}/reviews","Visitante","Lista as avaliações do barbeiro."],
+    ["GetCustomerRating","público","—","booking","Devolve a nota e o número de avaliações do cliente."],
+    ["HideReview","","POST /admin/reviews/{id}/hide","Administrador","Esconde uma avaliação ofensiva ou falsa, com motivo."],
+    ["RecalculateRating","evento","ReviewPublished, ReviewHidden","Sistema","Recalcula `rating_stats` da barbearia, do barbeiro ou do cliente a partir das publicadas."],
+    ["OnUserAccountDeleted","evento","UserAccountDeleted","Sistema","O nome do autor passa a \"Utilizador removido\"."],
+  ],
+  notification: [
+    ["RegisterDevice","","POST /me/devices","Utilizador","Regista o token FCM do aparelho."],
+    ["UnregisterDevice","","DELETE /me/devices/{token}","Utilizador","Apaga o token quando a pessoa sai da conta."],
+    ["ListNotifications","","GET /me/notifications","Utilizador","Mostra a caixa da app, paginada."],
+    ["MarkNotificationRead","","POST /me/notifications/{id}/read","Utilizador","Marca um aviso como lido."],
+    ["MarkAllRead","","POST /me/notifications/read-all","Utilizador","Marca todos os avisos como lidos."],
+    ["NotificationEventListener","evento","vários","Sistema","Grava o aviso na transação do evento: marcação pedida, confirmada, recusada, cancelada (com convite para pedir o reembolso, se foi paga), expirada ou concluída (convite para avaliar), avaliações publicadas, convite de barbeiro, barbearia aprovada ou recusada, pagamento declarado, reembolso pedido ou enviado e mensagem nova."],
+    ["DeliverPush","job","a cada 5 s","Sistema","Envia por FCM com `FOR UPDATE SKIP LOCKED`, até 5 tentativas. Um token inválido é apagado."],
+    ["SendReminders","job","a cada 5 min","Sistema","Envia lembretes 24 h e 1 h antes da marcação; a `dedupe_key` impede repetições."],
+    ["PurgeOldNotifications","job","diário","Sistema","Apaga os avisos com mais de 6 meses."],
+  ],
+  payment: [
+    ["SetShopPaymentAccounts","","PUT /shops/{id}/payment-accounts","Dono","Define os números de Multicaixa Express, Unitel Money e Afrimoney ou o IBAN da barbearia."],
+    ["OnBookingCreated","evento","BookingCreated","Sistema","Cria o pagamento PENDING com o valor da marcação e o método escolhido."],
+    ["GetBookingPayment","","GET /bookings/{id}/payment","Cliente ou barbearia","Mostra o valor, o estado, o reembolso e para onde pagar (`payTo`)."],
+    ["ChangePaymentMethod","","PUT /bookings/{id}/payment/method","Cliente","Troca o método enquanto o pagamento está PENDING."],
+    ["DeclarePayment","","POST /bookings/{id}/payment/declare","Cliente","Avisa que transferiu, com a key do comprovativo (JPG, PNG ou PDF), e passa a DECLARED."],
+    ["ConfirmPaymentReceived","","POST /bookings/{id}/payment/received","Dono ou barbeiro atribuído","Passa a RECEIVED. Em espécie, é o único passo."],
+    ["DisputePayment","","POST /bookings/{id}/payment/not-received","Dono","Passa de DECLARED a DISPUTED, e o administrador vê o comprovativo."],
+    ["ResolvePaymentDispute","","POST /admin/payments/{id}/resolve","Administrador","Decide RECEIVED ou volta a PENDING."],
+    ["OnBookingCancelled","evento","BookingCancelled, BookingRejected, BookingExpired","Sistema","Um pagamento PENDING passa a CANCELLED. Se já foi declarado ou recebido, fica à espera de um pedido de reembolso."],
+    ["RequestRefund","","POST /bookings/{id}/payment/refund","Cliente","Para uma marcação cancelada, recusada ou expirada com pagamento DECLARED ou RECEIVED. Trava o pagamento (`FOR UPDATE`): só há um pedido, do valor pago."],
+    ["SendRefund","","POST /refunds/{id}/sent","Dono","Marca como devolvido, com a key do comprovativo: SENT."],
+    ["ConfirmRefund","","POST /refunds/{id}/confirm","Cliente","Confirma que recebeu: CONFIRMED, e o pagamento passa a REFUNDED."],
+    ["DisputeRefund","","POST /refunds/{id}/dispute","Cliente","Diz que não recebeu: DISPUTED, e o administrador vê o comprovativo."],
+    ["ResolveRefundDispute","","POST /admin/refunds/{id}/resolve","Administrador","Decide CONFIRMED ou volta a REQUESTED, com nota."],
+    ["AutoConfirmRefunds","job","diário","Sistema","Reembolsos SENT sem resposta do cliente em 7 dias passam a CONFIRMED."],
+    ["GetShopRevenue","","GET /shops/{id}/revenue?de=&ate=","Dono","Mostra o total recebido menos os reembolsos, por método e por barbeiro."],
+  ],
+  messaging: [
+    ["OpenConversation","","POST /shops/{id}/conversations","Cliente","Só quem tem uma marcação nessa barbearia. Há uma conversa por cliente e barbearia."],
+    ["ListConversations","","GET /me/conversations · GET /shops/{id}/conversations","Cliente · dono e barbeiros","Mostra a última mensagem e as não lidas."],
+    ["ListMessages","","GET /conversations/{id}/messages?antes=","Participantes","Lista as mensagens, paginadas pela data."],
+    ["SendMessage","","POST /conversations/{id}/messages","Participantes","Envia até 2000 caracteres, com telefones (libphonenumber, região AO) e e-mails trocados por •••. O `clientMessageId` evita duplicados, e o outro lado recebe push."],
+    ["MarkConversationRead","","POST /conversations/{id}/read","Participantes","Atualiza a marca de leitura do lado de quem lê, que nunca recua."],
+    ["PurgeOldMessages","job","diário","Sistema","Apaga as mensagens com mais de 2 anos."],
+  ],
+  shared: [
+    ["CreateUploadUrl","","POST /uploads","Utilizador","Recebe o propósito (avatar, capa ou comprovativo), o tipo e o tamanho, e devolve uma URL PUT pré-assinada de 5 min e a key `users/{id}/…`."],
+    ["OutboxRelay","job","a cada 5 s","Sistema","Entrega os eventos que saem da aplicação (e-mails), com até 5 tentativas e um alerta no log quando falham."],
+  ],
+};
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const fmt = s => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+const color = id => `var(--m-${id})`;
+
+document.getElementById("legend").innerHTML = MODULES.map(m =>
+  `<span style="--c:${color(m.id)}"><i class="sq"></i>${esc(m.id)}</span>`).join("");
+
+document.getElementById("module-nav").innerHTML = MODULES.map(m =>
+  `<a href="#mod-${m.id}" style="--c:${color(m.id)}"><i class="sq"></i>${esc(m.name)} <span style="color:var(--muted)">${m.tables.length}</span></a>`).join("");
+
+document.getElementById("modules").innerHTML = MODULES.map(m => `
+  <div class="module" id="mod-${m.id}" style="--c:${color(m.id)}">
+    <div class="module-head"><i class="sq"></i><h3>${esc(m.name)}</h3><span class="pkg">${esc(m.pkg)}</span><p>${fmt(m.desc)}</p></div>
+    <div class="tables">${m.tables.map(t => `
+      <div class="tcard">
+        <div class="tcard-head"><span class="tname">${esc(t.name)}</span><span class="badge">Proposta</span></div>
+        <p class="tdesc">${fmt(t.desc)}</p>
+        <div class="cols-wrap"><table class="cols"><tbody>${t.cols.map(([n, ty, note, key]) =>
+          `<tr><td>${key ? `<span class="key">${key}</span>` : ""}${esc(n)}</td><td>${esc(ty)}</td><td>${fmt(note || "")}</td></tr>`).join("")}</tbody></table></div>
+        ${t.idx.length ? `<div class="tidx">${t.idx.map(i => `<code>${esc(i)}</code>`).join("")}</div>` : "<div></div>"}
+      </div>`).join("")}
+    </div>
+  </div>`).join("");
+
+let total = 0;
+document.getElementById("usecases").innerHTML = MODULES.map(m => {
+  const rows = USECASES[m.id] || [];
+  total += rows.length;
+  return `<div class="uc-module" style="--c:${color(m.id)}">
+    <h3><i class="sq"></i>${esc(m.name)} <span class="pkg">${rows.length} casos de uso</span></h3>
+    <div class="wide mod"><table class="grid"><thead><tr><th>Caso de uso</th><th>Endpoint</th><th>Quem</th><th>O que faz</th></tr></thead><tbody>
+    ${rows.map(([uc, kind, ep, who, fx]) => `<tr><td class="uc">${esc(uc)}${kind ? `<span class="kind">${kind}</span>` : ""}</td><td class="ep">${esc(ep)}</td><td>${esc(who)}</td><td class="fx">${fmt(fx)}</td></tr>`).join("")}
+    </tbody></table></div></div>`;
+}).join("");
+document.getElementById("uc-count").textContent = total;
+
+// Desenhos da AWS: caixas, cilindros, áreas e setas num viewBox de 2000 × 1345, com o rough.js quando carrega
+const FILL = { orange: "--d-orange", pink: "--d-pink", purple: "--d-purple", blue: "--d-blue", green: "--d-green", grey: "--d-grey", white: "--d-white" };
+function drawSketch(id, items) {
+  const NS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("viewBox", "0 0 2000 1345");
+  const rc = window.rough ? window.rough.svg(svg) : null;
+  let seed = 1;
+  const path = (d, { fill, dash, width = 2.2 } = {}) => {
+    const fillVar = fill ? `var(${FILL[fill]})` : "none";
+    let node;
+    if (rc) {
+      node = rc.path(d, { seed: seed++, roughness: 1, bowing: 0.6, stroke: "var(--d-ink)", strokeWidth: width,
+        fill: fill ? fillVar : undefined, fillStyle: "solid", strokeLineDash: dash, disableMultiStroke: !!dash });
+      // var() não funciona em atributos de apresentação do SVG, só em style
+      node.querySelectorAll("path").forEach(p => ["stroke", "fill"].forEach(a => {
+        const v = p.getAttribute(a);
+        if (v && v.startsWith("var(")) { p.style[a] = v; p.removeAttribute(a); }
+      }));
+    } else {
+      node = document.createElementNS(NS, "path");
+      node.setAttribute("d", d);
+      node.style.cssText = `fill:${fillVar};stroke:var(--d-ink);stroke-width:${width}`;
+      if (dash) node.style.strokeDasharray = dash.join(" ");
+    }
+    svg.appendChild(node);
+  };
+  const text = (x, y, s, size, cls = "s", anchor = "start") => {
+    const t = document.createElementNS(NS, "text");
+    Object.entries({ x, y, "font-size": size, "text-anchor": anchor, class: cls }).forEach(([k, v]) => t.setAttribute(k, v));
+    t.textContent = s;
+    svg.appendChild(t);
+  };
+  const rr = (x, y, w, h, r = 12) => `M${x + r} ${y}H${x + w - r}Q${x + w} ${y} ${x + w} ${y + r}V${y + h - r}Q${x + w} ${y + h} ${x + w - r} ${y + h}H${x + r}Q${x} ${y + h} ${x} ${y + h - r}V${y + r}Q${x} ${y} ${x + r} ${y}Z`;
+  const label = (cx, cy, title, sub) => {
+    const lines = sub ? sub.split("\n") : [];
+    const top = cy - (28 + lines.length * 24) / 2 + 22;
+    text(cx, top, title, 27, "m", "middle");
+    lines.forEach((l, i) => text(cx, top + 30 + i * 24, l, 18, "s", "middle"));
+  };
+  for (const it of items) {
+    if (it.box) {
+      const [x, y, w, h] = it.box;
+      path(rr(x, y, w, h), { fill: it.fill });
+      label(x + w / 2, y + h / 2, it.title, it.sub);
+    } else if (it.area) {
+      const [x, y, w, h] = it.area;
+      path(rr(x, y, w, h, it.r ?? 14), { dash: it.dash, width: it.width ?? 2 });
+    } else if (it.cyl) {
+      const [x, y, w, h] = it.cyl, e = 24, k = e * 1.33, t = y + e, b = y + h - e;
+      path(`M${x} ${t}V${b}C${x} ${b + k} ${x + w} ${b + k} ${x + w} ${b}V${t}C${x + w} ${t - k} ${x} ${t - k} ${x} ${t}Z`, { fill: it.fill });
+      path(`M${x} ${t}C${x} ${t - k} ${x + w} ${t - k} ${x + w} ${t}C${x + w} ${t + k} ${x} ${t + k} ${x} ${t}Z`, { fill: it.fill });
+      label(x + w / 2, y + h / 2 + e / 2, it.title, it.sub);
+    } else if (it.arrow) {
+      const p = it.arrow, [x1, y1] = p.at(-2), [x2, y2] = p.at(-1), a = Math.atan2(y2 - y1, x2 - x1);
+      path("M" + p.map(q => q.join(" ")).join("L"), { dash: it.dash, width: 2 });
+      path(`M${x2 - 17 * Math.cos(a - 0.45)} ${y2 - 17 * Math.sin(a - 0.45)}L${x2} ${y2}L${x2 - 17 * Math.cos(a + 0.45)} ${y2 - 17 * Math.sin(a + 0.45)}`, { width: 2 });
+    } else if (it.text) {
+      text(...it.text);
+    }
+  }
+  document.getElementById(id).replaceChildren(svg);
+}
+
+const awsBase = t => [
+  { text: [50, 66, t.title, 46, "h"] },
+  { text: [52, 104, t.sub, 20] },
+  { box: [720, 28, 600, 84], fill: "grey", title: "Fornecedores na Internet", sub: "Twilio (SMS e WhatsApp), Brevo, Firebase, Google, Facebook, Apple" },
+  { area: [285, 155, 1690, 1125], r: 26, width: 2.6 },
+  { text: [310, 194, "AWS · af-south-1 (Cidade do Cabo)", 27, "m"] },
+  { area: [320, 220, 1130, 1028], dash: [14, 9] },
+  { text: [1425, 256, "VPC 10.30.0.0/16", 18, "s", "end"] },
+  { box: [775, 192, 192, 56], fill: "white", title: "Internet GW" },
+  { text: [612, 274, "ZONA A", 20, "s", "middle"] },
+  { text: [1160, 274, "ZONA B", 20, "s", "middle"] },
+  { area: [352, 287, 520, 356], dash: [4, 7], width: 1.6 },
+  { area: [905, 287, 512, 356], dash: [4, 7], width: 1.6 },
+  { area: [352, 665, 520, 562], dash: [4, 7], width: 1.6 },
+  { area: [905, 665, 512, 562], dash: [4, 7], width: 1.6 },
+  { text: [370, 630, "pública 10.30.0.0/24", 17] },
+  { text: [923, 630, "pública 10.30.1.0/24", 17] },
+  { text: [370, 1214, "privada 10.30.10.0/24", 17] },
+  { text: [923, 1214, "privada 10.30.11.0/24", 17] },
+  { arrow: [[871, 192], [871, 150], [1020, 150], [1020, 114]] },
+  { box: [50, 423, 205, 142], fill: "orange", title: "App Okuteta", sub: "iOS e Android" },
+  { arrow: [[255, 495], [333, 495], [333, 355], [420, 355]] },
+  { text: [262, 480, "HTTPS", 17] },
+  { arrow: [[150, 423], [150, 132], [1712, 132], [1712, 368]], dash: [10, 8] },
+  { text: [1335, 124, "upload e download diretos, URL pré-assinada", 17] },
+  { text: [1712, 254, "SERVIÇOS DA REGIÃO", 19, "s", "middle"] },
+  ...[["Route 53 + ACM", "okuteta.ao e api.okuteta.ao, certificado", "grey"],
+      ["S3", "fotos e comprovativos, privado", "orange"],
+      ["Secrets Manager", "base, JWT, chave do TOTP, Twilio, Firebase", "grey"],
+      ["CloudWatch", t.cw, "grey"],
+      ["AWS Budgets", t.budget, "grey"],
+      ["ECR", t.ecr, "blue"],
+      ["IAM · papel de deploy", "OIDC do GitHub, só a main", "green"]]
+    .map(([title, sub, fill], i) => ({ box: [1493, 272 + i * 98, 437, 82], fill, title, sub })),
+  { text: [1712, 985, "a tarefa usa o seu papel IAM:", 17, "s", "middle"] },
+  { text: [1712, 1008, "nenhuma chave da AWS na imagem", 17, "s", "middle"] },
+  { box: [50, 973, 205, 142], fill: "grey", title: "GitHub Actions", sub: t.gh },
+  { arrow: [[255, 1045], [272, 1045], [272, 1302], [1885, 1302], [1885, 946]] },
+  { text: [1000, 1332, "publica a imagem no ECR e atualiza o serviço ECS, com credenciais temporárias", 17, "s", "middle"] },
+];
+
+drawSketch("aws-producao", [
+  ...awsBase({ title: "Okuteta na AWS: produção", sub: "proposta · infra/producao · ≈ 280 US$/mês",
+    cw: "logs JSON 30 dias, alarmes por SNS", budget: "alarme por e-mail a 80% e 100%", ecr: "imagens ARM64 da API (guarda 20)", gh: "deploy manual,\nimagem já testada" }),
+  { box: [422, 315, 925, 80], fill: "pink", title: "Application Load Balancer · HTTPS (ACM) + AWS WAF", sub: "aceita 443 da Internet; o WAF limita pedidos por IP em /auth" },
+  { box: [385, 448, 255, 125], fill: "grey", title: "NAT Gateway", sub: "saída das tarefas\nprivadas" },
+  { arrow: [[385, 510], [368, 510], [368, 222], [773, 222]] },
+  { text: [1160, 482, "sem NAT nesta zona: a tarefa 2", 17, "s", "middle"] },
+  { text: [1160, 505, "também sai pelo NAT da zona A", 17, "s", "middle"] },
+  { arrow: [[770, 395], [770, 703]] },
+  { arrow: [[1295, 395], [1295, 703]] },
+  { box: [385, 705, 435, 122], fill: "purple", title: "ECS Fargate · tarefa 1", sub: "1 vCPU · 2 GB · ARM64 · API e jobs" },
+  { box: [942, 705, 435, 122], fill: "purple", title: "ECS Fargate · tarefa 2", sub: "2 a 6 tarefas, repartidas pelas zonas" },
+  { arrow: [[512, 705], [512, 575]] },
+  { arrow: [[603, 827], [603, 870]] },
+  { arrow: [[1130, 827], [1130, 850], [768, 850], [768, 880]] },
+  { cyl: [422, 872, 362, 190], fill: "blue", title: "RDS PostgreSQL 18", sub: "principal · PostGIS · db.t4g.small" },
+  { area: [966, 862, 386, 210], dash: [6, 6], width: 1.6 },
+  { cyl: [978, 872, 362, 190], fill: "blue", title: "réplica de espera", sub: "Multi-AZ: assume se\na zona A cair" },
+  { arrow: [[786, 980], [962, 980]], dash: [8, 7] },
+  { text: [874, 966, "cópia síncrona", 17, "s", "middle"] },
+  { arrow: [[400, 827], [400, 1093]] },
+  { box: [385, 1095, 435, 100], fill: "orange", title: "Endpoint S3 · gateway", sub: "as tarefas chegam ao S3 sem passar no NAT" },
+  { arrow: [[820, 1145], [1466, 1145], [1466, 411], [1491, 411]] },
+  { arrow: [[1377, 745], [1440, 745], [1440, 607], [1491, 607]] },
+]);
+
+drawSketch("aws-teste", [
+  ...awsBase({ title: "Okuteta na AWS: teste", sub: "o que o terraform apply em infra/teste cria · ≈ 80 US$/mês",
+    cw: "logs JSON, 7 dias", budget: "alarme por e-mail (100 US$)", ecr: "imagens da API (guarda 20)", gh: "deploy-teste,\nsó da main" }),
+  { box: [422, 315, 925, 80], fill: "pink", title: "Application Load Balancer · HTTPS (ACM)", sub: "aceita 443 da Internet; sem WAF" },
+  { arrow: [[615, 395], [615, 446]] },
+  { box: [422, 448, 385, 140], fill: "purple", title: "ECS Fargate · 1 tarefa", sub: "0,5 vCPU · 1 GB · IP público\nsó aceita a 8080 do balanceador" },
+  { arrow: [[422, 488], [383, 488], [383, 222], [773, 222]] },
+  { arrow: [[807, 520], [1440, 520], [1440, 607], [1491, 607]] },
+  { text: [1160, 470, "sem tarefa: a AWS exige", 17, "s", "middle"] },
+  { text: [1160, 493, "duas zonas ao balanceador", 17, "s", "middle"] },
+  { arrow: [[615, 588], [615, 752]] },
+  { cyl: [440, 755, 350, 215], fill: "blue", title: "RDS PostgreSQL 18", sub: "db.t4g.micro · 20 GB · PostGIS\numa zona · só a 5432 da API" },
+  { text: [1160, 890, "vazia: o grupo de sub-redes", 17, "s", "middle"] },
+  { text: [1160, 913, "da base exige duas zonas", 17, "s", "middle"] },
+]);
+</script>
