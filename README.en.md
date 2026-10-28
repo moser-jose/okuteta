@@ -11,7 +11,7 @@ uses English names (`shop`, `booking`, `member`); user-facing text is in Angolan
 > **Status:** design approved, **no code yet**. Everything in this README describes what will be built, step by step
 > (see [Next steps](#next-steps)). The next one is step 0: the project skeleton.
 >
-> The full system design (decisions, data model with columns and indexes, 141 use cases, architecture, capacity and
+> The full system design (decisions, data model with columns and indexes, 145 use cases, architecture, capacity and
 > operations) is in [docs/design.html](docs/design.html) (in Portuguese), summarised in
 > [Data model and system design](#data-model-and-system-design). The project follows the same approach as Bazza: a
 > modular monolith, Clean Architecture, and every provider behind a port.
@@ -20,8 +20,8 @@ uses English names (`shop`, `booking`, `member`); user-facing text is in Angolan
 
 ### Planned for the MVP
 
-- **Account:** sign-up with a required phone number (`+244`, mobile), optional password, session refresh, listing and
-  ending sessions on other devices, and deletion with anonymisation
+- **Account:** sign-up with a required phone number (`+244`, mobile), optional password, acceptance of the terms (with
+  their version), session refresh, listing and ending sessions on other devices, and deletion with anonymisation
 - **Sign-in:** nine ways in: email or phone with password, SMS code, WhatsApp code, email link, Google, Facebook,
   Apple and passkeys
 - **2FA and MFA (optional for everyone):** authenticator app (TOTP), passkey, SMS, WhatsApp or email code, and 10
@@ -57,7 +57,9 @@ uses English names (`shop`, `booking`, `member`); user-facing text is in Angolan
   refunds with proof, and the customer confirms or disputes it. An administrator decides disputes
 - **Messages:** chat between the customer and the barbershop (owner and barbers), with phone numbers and emails hidden
   (`•••`)
-- **Administration:** barbershop approval queue, suspension, hiding reviews, and payment and refund disputes
+- **Administration:** barbershop approval queue, suspension and reinstatement, hiding reviews, payment and refund
+  disputes, and turning off 2FA for someone who lost it (with a 24 h wait). The first administrators come from
+  `ADMIN_PHONES`
 
 ### After the MVP
 
@@ -183,6 +185,8 @@ it, the **required** ones must be set, or the app refuses to start and says what
 |---|---|---|
 | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | yes | PostgreSQL |
 | `JWT_SECRET` | yes | Signs the tokens (access, social sign-up, 2FA) |
+| `ADMIN_PHONES` | no | Verified phones whose accounts become ADMIN at startup (comma-separated) |
+| `TERMS_VERSION` | yes | Current terms version; accounts that accepted an older one must accept again |
 | `CRYPTO_KEY` | yes | AES-256-GCM key for TOTP secrets |
 | `PUBLIC_BASE_URL` | yes | Domain for email links (e.g. `https://okuteta.ao`) |
 | `EMAIL_SENDER` | no | `smtp` (Brevo) or `log` |
@@ -243,16 +247,29 @@ The phone number is **required** and checked against the numbering plan with lib
 exist, or a landline, is rejected (**422**). Signing in with a phone only works once it's verified. Until then, the
 API answers as if the number didn't exist.
 
+### Conventions
+
+| Topic | Rule | Example |
+|---|---|---|
+| Names | Paths, query parameters and JSON fields in English; JSON in camelCase. Text shown to people (errors, notices) in Portuguese | `GET /shops/{id}/availability?date=2026-11-07&serviceIds=…` |
+| Pagination | Cursor-based on lists that grow: `?limit=` (default 20, max 100) and `?cursor=`. The response has `nextCursor`, null on the last page. Newest first by default | `{ "items": [ … ], "nextCursor": "MjAy…" }` |
+| Instants | ISO 8601 in UTC in responses; requests may carry an offset | `"startsAt": "2026-11-07T10:30:00Z"` |
+| Schedule days and times | Local, in the barbershop's time zone, which comes in the response | `"date": "2026-11-07", "start": "11:30", "timezone": "Africa/Luanda"` |
+| Money | Integer cents, with the currency | `"totalCents": 450000, "currency": "AOA"` |
+| Repeating a request | Creating a booking accepts `Idempotency-Key`. Payment and refund operations are safe by state: repeated, they return the current state instead of an error. Messages use `clientMessageId` | `Idempotency-Key: 6f1c2a9e-…` |
+| Versions | Everything under `/api/v1`. New fields don't change the version; a breaking change goes to `/api/v2`, with both live for 6 months | `/api/v1/…` |
+
 ### Endpoints
 
 All planned. The full list, with every request and response field, will be in Swagger. `job` is a scheduled task (with
 ShedLock), `event` reacts to another module's events, and `public` is called by another module, with no endpoint.
 
+<!-- generated:usecases -->
 **Users** (`user`)
 
 | Use case | Type | Endpoint | Who | What it does |
 |---|---|---|---|---|
-| `RegisterUser` | endpoint | `POST /api/v1/auth/register` | Visitor | Creates the account with name, phone (`+244`, mobile, checked with libphonenumber), optional email and optional password (Argon2id), and sends the code over the chosen channel (SMS or WhatsApp) |
+| `RegisterUser` | endpoint | `POST /api/v1/auth/register` | Visitor | Creates the account with name, phone (`+244`, mobile, checked with libphonenumber), optional email and optional password (Argon2id), accepts the current terms version, and sends the code over the chosen channel (SMS or WhatsApp) |
 | `SendPhoneCode` | endpoint | `POST /api/v1/auth/phone/code` | Visitor | Resends the code by SMS or WhatsApp (valid 10 min; 1 per minute and 5 per day) |
 | `VerifyPhone` | endpoint | `POST /api/v1/auth/phone/verify` | Visitor | Checks the code (up to 5 attempts), marks the phone as verified and returns the session |
 | `LoginWithPassword` | endpoint | `POST /api/v1/auth/login` | Visitor | Signs in with email or verified phone and password. 5 failures lock it for 15 min. With 2FA on, returns an `mfaToken` instead of the session |
@@ -268,7 +285,7 @@ ShedLock), `event` reacts to another module's events, and `public` is called by 
 | `FinishPasskeyLogin` | endpoint | `POST /api/v1/auth/passkey/verify` | Visitor | Checks the signature, origin, user verification and counter. Returns the session with no second factor |
 | `SendMfaCode` | endpoint | `POST /api/v1/auth/mfa/code` | Visitor with mfaToken | Sends the second-factor code by SMS, WhatsApp or email, on a different channel from the first |
 | `VerifyMfa` | endpoint | `POST /api/v1/auth/mfa/verify` | Visitor with mfaToken | Accepts a TOTP, SMS, WhatsApp, email or recovery code, or a passkey, and returns the session with `amr` and `auth_time` |
-| `StepUp` | endpoint | `POST /api/v1/auth/step-up` | User | Re-confirms with password, passkey, app or code, and returns a JWT with a fresh `auth_time`, valid 5 min for sensitive actions |
+| `StepUp` | endpoint | `POST /api/v1/auth/step-up` | User | Re-confirms with password, passkey, app or code, and returns a JWT with a fresh `auth_time`, valid 5 min for sensitive actions. Refused for 24 h after a `ResetMfaByAdmin` |
 | `RefreshSession` | endpoint | `POST /api/v1/auth/refresh` | User | Rotates the refresh token without asking for the second factor. Reusing an old token revokes the whole family |
 | `Logout` | endpoint | `POST /api/v1/auth/logout` | User | Revokes this device's session |
 | `ListSessions` | endpoint | `GET /api/v1/me/sessions` | User | Lists devices with a session, the methods used and last use |
@@ -294,6 +311,9 @@ ShedLock), `event` reacts to another module's events, and `public` is called by 
 | `DeleteAccount` | endpoint | `DELETE /api/v1/me` | User, with confirmation | Anonymises the account and publishes `UserAccountDeleted`. An owner with an active barbershop has to close it first |
 | `GetAccountStatus` | public | — | booking, shop | Returns the account status and whether the phone is verified, to book and to create a barbershop |
 | `FindUserByPhone` | public | — | shop | Returns the account with that verified phone, if any, to notify someone who's invited |
+| `AcceptTerms` | endpoint | `POST /api/v1/me/terms` | User | Accepts the current terms version (`TERMS_VERSION`). Until then, the API returns 403 `TERMS_REQUIRED` for everything except `/auth/*` and `/me/terms` |
+| `ResetMfaByAdmin` | endpoint | `POST /api/v1/admin/users/{id}/mfa/reset` | Admin | Turns 2FA off for someone who lost the app and the codes, after confirming their identity outside the app (e.g. a video call with their ID card). Records who did it; the account gets 24 h without sensitive actions and notices by SMS and email |
+| `PromoteAdmins` | job | at startup | System | Accounts whose verified phone is in `ADMIN_PHONES` become ADMIN; anyone removed from the list goes back to USER |
 | `PurgeExpiredChallenges` | job | daily | System | Deletes codes and WebAuthn challenges that expired more than 1 day ago |
 
 **Barbershops** (`shop`)
@@ -309,7 +329,8 @@ ShedLock), `event` reacts to another module's events, and `public` is called by 
 | `ApproveShop` | endpoint | `POST /api/v1/admin/shops/{id}/approve` | Admin | Becomes APPROVED and shows up in search. Publishes `ShopApproved` |
 | `RejectShop` | endpoint | `POST /api/v1/admin/shops/{id}/reject` | Admin | Becomes REJECTED with a reason. The owner fixes it and resubmits |
 | `SuspendShop` | endpoint | `POST /api/v1/admin/shops/{id}/suspend` | Admin | Leaves search. `ShopSuspended` cancels future bookings |
-| `SearchShops` | endpoint | `GET /api/v1/shops?lat=&lng=&raio=&q=` | Visitor | Runs the PostGIS query: approved barbershops within the radius, sorted by distance, with rating and lowest price |
+| `ReinstateShop` | endpoint | `POST /api/v1/admin/shops/{id}/reinstate` | Admin | SUSPENDED → APPROVED, with a reason: back in search and taking bookings. Cancelled bookings don't come back. Publishes `ShopReinstated` |
+| `SearchShops` | endpoint | `GET /api/v1/shops?lat=&lng=&radius=&q=` | Visitor | Runs the PostGIS query: approved barbershops within the radius, sorted by distance, with rating and lowest price |
 | `GetShop` | endpoint | `GET /api/v1/shops/{id}` | Visitor | Public profile: hours, services, barbers, rating, payment accounts and cancellation rule |
 | `CreateService` | endpoint | `POST /api/v1/shops/{id}/services` | Owner | Creates a service with name, duration (multiple of 5 min) and price in kwanzas |
 | `UpdateService` | endpoint | `PATCH /api/v1/shops/{id}/services/{serviceId}` | Owner | The new price and duration apply only to new bookings |
@@ -335,8 +356,8 @@ ShedLock), `event` reacts to another module's events, and `public` is called by 
 | `SetWorkingHours` | endpoint | `PUT /api/v1/members/{id}/working-hours` | Barber or owner | Sets the weekly hours (within the barbershop's) and regenerates free slots. Returns 409 if a booking would fall outside the new hours |
 | `AddTimeOff` | endpoint | `POST /api/v1/members/{id}/time-off` | Barber or owner | Adds a day off, holiday or break and deletes free slots in that period. Returns 409 if there are bookings in the period |
 | `RemoveTimeOff` | endpoint | `DELETE /api/v1/members/{id}/time-off/{timeOffId}` | Barber or owner | Regenerates the period's slots |
-| `ListTimeOff` | endpoint | `GET /api/v1/members/{id}/time-off?de=&ate=` | Barber or owner | Lists time off in the period |
-| `GetAvailability` | endpoint | `GET /api/v1/shops/{id}/availability?data=&servicos=&barbeiro=` | Visitor | Reads the day's free slots and returns the start times with enough consecutive slots for the total duration, respecting the minimum notice. Without a barber, the union of everyone who does the services |
+| `ListTimeOff` | endpoint | `GET /api/v1/members/{id}/time-off?from=&to=` | Barber or owner | Lists time off in the period |
+| `GetAvailability` | endpoint | `GET /api/v1/shops/{id}/availability?date=&serviceIds=&memberId=` | Visitor | Reads the day's free slots and returns the start times with enough consecutive slots for the total duration, respecting the minimum notice. Without a barber, the union of everyone who does the services |
 | `ReserveSlots` | public | — | booking | Takes the interval's slots with `UPDATE … WHERE booking_id IS NULL` and checks the row count. If any is missing, the booking fails with 409 |
 | `GenerateSlots` | job | daily | System | For every barber, in the barbershop's time zone, generates slots for every day in the window (`max_advance_days`) that doesn't have them yet. A missed run is fixed by the next one |
 | `PurgePastSlots` | job | daily | System | Deletes slots older than 7 days |
@@ -350,10 +371,10 @@ ShedLock), `event` reacts to another module's events, and `public` is called by 
 |---|---|---|---|---|
 | `CreateBooking` | endpoint | `POST /api/v1/shops/{id}/bookings` | Verified customer | Takes the services, start time, barber (or none) and payment method. Locks the candidates in id order, picks a random one with free slots, calls `ReserveSlots`, and creates it as CONFIRMED (INSTANT) or PENDING (MANUAL). Accepts `Idempotency-Key`. Refused if the customer hit that barbershop's no-show limit |
 | `GetBooking` | endpoint | `GET /api/v1/bookings/{id}` | Customer, barber or owner | Shows the detail with copied services and prices. For the barbershop, includes the customer's rating |
-| `ListMyBookings` | endpoint | `GET /api/v1/me/bookings?estado=` | Customer | Lists upcoming and past bookings |
-| `ListShopAgenda` | endpoint | `GET /api/v1/shops/{id}/agenda?data=&barbeiro=` | Owner or barber | Shows the day's schedule: a barber sees only their own, the owner sees all |
+| `ListMyBookings` | endpoint | `GET /api/v1/me/bookings?status=&cursor=` | Customer | Lists upcoming and past bookings, paginated by cursor |
+| `ListShopAgenda` | endpoint | `GET /api/v1/shops/{id}/agenda?date=&memberId=` | Owner or barber | Shows the day's schedule: a barber sees only their own, the owner sees all |
 | `ApproveBooking` | endpoint | `POST /api/v1/bookings/{id}/approve` | Owner or assigned barber | PENDING → CONFIRMED |
-| `RejectBooking` | endpoint | `POST /api/v1/bookings/{id}/reject` | Owner or assigned barber | PENDING → REJECTED, with a reason, and frees the slots |
+| `RejectBooking` | endpoint | `POST /api/v1/bookings/{id}/reject` | Owner or assigned barber | PENDING → REJECTED, with a reason, and frees the slots. Also for "anyone": it doesn't move to another barber, and the notice to the customer links to other times |
 | `CancelBookingByCustomer` | endpoint | `POST /api/v1/bookings/{id}/cancel` | Customer | Cancels up to `cancel_notice_hours` before the start. After that, returns 409 and only the barbershop can cancel |
 | `CancelBookingByShop` | endpoint | `POST /api/v1/shops/{id}/bookings/{bookingId}/cancel` | Owner or assigned barber | Cancels any time before the start, with a required reason |
 | `CompleteBooking` | endpoint | `POST /api/v1/bookings/{id}/complete` | Owner or assigned barber | From the start time on, becomes COMPLETED and publishes `BookingCompleted` |
@@ -387,10 +408,10 @@ ShedLock), `event` reacts to another module's events, and `public` is called by 
 |---|---|---|---|---|
 | `RegisterDevice` | endpoint | `POST /api/v1/me/devices` | User | Registers the device's FCM token |
 | `UnregisterDevice` | endpoint | `DELETE /api/v1/me/devices/{token}` | User | Deletes the token when the person signs out |
-| `ListNotifications` | endpoint | `GET /api/v1/me/notifications` | User | Shows the in-app inbox, paginated |
+| `ListNotifications` | endpoint | `GET /api/v1/me/notifications` | User | Shows the in-app inbox, paginated by cursor |
 | `MarkNotificationRead` | endpoint | `POST /api/v1/me/notifications/{id}/read` | User | Marks a notice as read |
 | `MarkAllRead` | endpoint | `POST /api/v1/me/notifications/read-all` | User | Marks every notice as read |
-| `NotificationEventListener` | event | several | System | Stores the notice in the event's transaction: booking requested, confirmed, rejected, cancelled (with an invite to request a refund if it was paid), expired or completed (invite to review), reviews published, barber invite, barbershop approved or rejected, payment declared, refund requested or sent, new message, and security notices (sign-in from a new device, 2FA turned on or off, recovery code used), these also by email |
+| `NotificationEventListener` | event | several | System | Stores the notice in the event's transaction: booking requested, confirmed, rejected, cancelled (with an invite to request a refund if it was paid), expired or completed (invite to review), reviews published, barber invite, barbershop approved, rejected or reinstated, payment declared, refund requested or sent, new message, and security notices (sign-in from a new device, 2FA turned on or off, recovery code used), these also by email |
 | `DeliverPush` | job | every 5 s | System | Sends through FCM with `FOR UPDATE SKIP LOCKED`, up to 5 attempts. An invalid token is deleted |
 | `SendReminders` | job | every 5 min | System | Sends reminders 24 h and 1 h before the booking; `dedupe_key` prevents repeats |
 | `PurgeOldNotifications` | job | daily | System | Deletes notices older than 6 months |
@@ -403,18 +424,18 @@ ShedLock), `event` reacts to another module's events, and `public` is called by 
 | `OnBookingCreated` | event | BookingCreated | System | Creates the PENDING payment with the booking's amount and chosen method |
 | `GetBookingPayment` | endpoint | `GET /api/v1/bookings/{id}/payment` | Customer or barbershop | Shows the amount, status, refund and where to pay (`payTo`) |
 | `ChangePaymentMethod` | endpoint | `PUT /api/v1/bookings/{id}/payment/method` | Customer | Changes the method while the payment is PENDING |
-| `DeclarePayment` | endpoint | `POST /api/v1/bookings/{id}/payment/declare` | Customer | Says the transfer was made, with the proof's upload key (JPG, PNG or PDF), and becomes DECLARED |
-| `ConfirmPaymentReceived` | endpoint | `POST /api/v1/bookings/{id}/payment/received` | Owner or assigned barber | Becomes RECEIVED. For cash, this is the only step |
+| `DeclarePayment` | endpoint | `POST /api/v1/bookings/{id}/payment/declare` | Customer | Says the transfer was made, with the proof's upload key (JPG, PNG or PDF), and becomes DECLARED. Repeated, returns the current state |
+| `ConfirmPaymentReceived` | endpoint | `POST /api/v1/bookings/{id}/payment/received` | Owner or assigned barber | Becomes RECEIVED. For cash, this is the only step. Repeated, returns the current state |
 | `DisputePayment` | endpoint | `POST /api/v1/bookings/{id}/payment/not-received` | Owner | DECLARED → DISPUTED, and the admin sees the proof |
 | `ResolvePaymentDispute` | endpoint | `POST /api/v1/admin/payments/{id}/resolve` | Admin | Decides RECEIVED or back to PENDING |
 | `OnBookingCancelled` | event | BookingCancelled, BookingRejected, BookingExpired | System | A PENDING payment becomes CANCELLED. If it was already declared or received, it waits for a refund request |
-| `RequestRefund` | endpoint | `POST /api/v1/bookings/{id}/payment/refund` | Customer | For a cancelled, rejected or expired booking whose payment is DECLARED or RECEIVED. Locks the payment (`FOR UPDATE`): only one request, for the amount paid |
-| `SendRefund` | endpoint | `POST /api/v1/refunds/{id}/sent` | Owner | Marks it as refunded, with the proof's upload key: SENT |
+| `RequestRefund` | endpoint | `POST /api/v1/bookings/{id}/payment/refund` | Customer | For a cancelled, rejected or expired booking whose payment is DECLARED or RECEIVED. Locks the payment (`FOR UPDATE`): only one request, for the amount paid. Repeated, returns the existing request |
+| `SendRefund` | endpoint | `POST /api/v1/refunds/{id}/sent` | Owner | Marks it as refunded, with the proof's upload key: SENT. Repeated, returns the current state |
 | `ConfirmRefund` | endpoint | `POST /api/v1/refunds/{id}/confirm` | Customer | Confirms receipt: CONFIRMED, and the payment becomes REFUNDED |
 | `DisputeRefund` | endpoint | `POST /api/v1/refunds/{id}/dispute` | Customer | Says it didn't arrive: DISPUTED, and the admin sees the proof |
 | `ResolveRefundDispute` | endpoint | `POST /api/v1/admin/refunds/{id}/resolve` | Admin | Decides CONFIRMED or back to REQUESTED, with a note |
 | `AutoConfirmRefunds` | job | daily | System | SENT refunds with no answer from the customer in 7 days become CONFIRMED |
-| `GetShopRevenue` | endpoint | `GET /api/v1/shops/{id}/revenue?de=&ate=` | Owner | Shows the total received minus refunds, by method and by barber |
+| `GetShopRevenue` | endpoint | `GET /api/v1/shops/{id}/revenue?from=&to=` | Owner | Shows the total received minus refunds, by method and by barber |
 
 **Messages** (`messaging`)
 
@@ -422,7 +443,7 @@ ShedLock), `event` reacts to another module's events, and `public` is called by 
 |---|---|---|---|---|
 | `OpenConversation` | endpoint | `POST /api/v1/shops/{id}/conversations` | Customer | Only for someone with a booking at that barbershop. One conversation per customer and barbershop |
 | `ListConversations` | endpoint | `GET /api/v1/me/conversations` · `GET /api/v1/shops/{id}/conversations` | Customer · owner and barbers | Shows the last message and unread count |
-| `ListMessages` | endpoint | `GET /api/v1/conversations/{id}/messages?antes=` | Participants | Lists messages, paginated by date |
+| `ListMessages` | endpoint | `GET /api/v1/conversations/{id}/messages?cursor=` | Participants | Lists messages, paginated by cursor (newest first) |
 | `SendMessage` | endpoint | `POST /api/v1/conversations/{id}/messages` | Participants | Sends up to 2000 characters, with phone numbers (libphonenumber, AO region) and emails replaced by `•••`. `clientMessageId` prevents duplicates, and the other side gets a push |
 | `MarkConversationRead` | endpoint | `POST /api/v1/conversations/{id}/read` | Participants | Moves the reader's side read marker, which never goes back |
 | `PurgeOldMessages` | job | daily | System | Deletes messages older than 2 years |
@@ -433,6 +454,7 @@ ShedLock), `event` reacts to another module's events, and `public` is called by 
 |---|---|---|---|---|
 | `CreateUploadUrl` | endpoint | `POST /api/v1/uploads` | User | Takes the purpose (avatar, cover or proof), type and size, and returns a 5-min pre-signed PUT URL and the key `users/{id}/…` |
 | `OutboxRelay` | job | every 5 s | System | Delivers events that leave the app (emails), with up to 5 attempts and a log alert when they fail |
+<!-- /generated:usecases -->
 
 ### Ways to sign in
 
@@ -467,6 +489,10 @@ unlinking the last provider is refused.
 - **Password reset:** with 2FA on, resetting the password also asks for the second factor.
 - **Notices:** a sign-in from a new device, turning 2FA on or off, and using a recovery code send an in-app notice and
   an email.
+- **Lost 2FA and recovery codes:** an administrator turns 2FA off (`ResetMfaByAdmin`) after confirming the person's
+  identity outside the app (e.g. a video call with their ID card). It records who did it, blocks sensitive actions for
+  24 h and notifies the owner by SMS and email, so a thief can't change the password or payment accounts before the
+  owner reacts.
 
 **Accepted risk:** since 2FA is optional and SMS and WhatsApp also count for administrators, a stolen admin password,
 or a SIM swap, gives access to approvals and payment proofs. Confirmation for sensitive actions reduces the risk, but
@@ -517,7 +543,7 @@ token. This applies to everyone, with or without 2FA.
 |---|---|
 | Passwords | Argon2id. Refresh tokens, codes, link tokens and recovery codes are stored only as SHA-256 hashes |
 | Sign-in lockout | 5 wrong passwords in a row lock the account for 15 min (HTTP 429 with `Retry-After`) |
-| Per-IP limit | In AWS WAF, shared by every instance, on `/auth/*`. In development, in memory |
+| Per-IP limit | In AWS WAF, shared by every instance: a tight one on `/auth/*` and a looser general one (e.g. 1,000 requests per 5 min) for search and public availability. In development, in memory |
 | Per-number and per-email limit | 1 code per minute and 5 per day per phone; 3 links per hour per email. Counted in PostgreSQL |
 | Verification codes | 6 digits, valid 10 min, 5 attempts, read with `FOR UPDATE` |
 | Files | 5-min pre-signed URL, with the key tied to the requester's id (`users/{id}/…`). The type is checked from the content after upload (JPG, PNG, PDF, up to 5 MB) |
@@ -550,7 +576,8 @@ Every error follows **RFC 9457 (Problem Details)**, with `Content-Type: applicat
 | 400 | `VALIDATION_FAILED` | Invalid request fields, listed in `errors` |
 | 401 | `UNAUTHORIZED` | No token, expired token, invalid credentials or refresh token |
 | 401 | `STEP_UP_REQUIRED` | Sensitive action with an `auth_time` older than 5 min |
-| 403 | `FORBIDDEN` | No role in the barbershop, admin route, or suspended account |
+| 403 | `TERMS_REQUIRED` | The account hasn't accepted the current terms version. Only `/auth/*` and `/me/terms` work |
+| 403 | `FORBIDDEN` | No role in the barbershop, admin route, suspended account, or sensitive action within 24 h of a 2FA reset |
 | 404 | `RESOURCE_NOT_FOUND` | Missing resource or route |
 | 409 | `CONFLICT` | Slot already taken, time off over bookings, phone or email already registered, concurrent change to the same record |
 | 422 | `BUSINESS_RULE_VIOLATION` | Business rule broken (e.g. cancelling after the deadline, no-show limit, landline number) |
@@ -569,7 +596,7 @@ fonts, diagrams and hand-drawn sketches). It's organised in the same parts as Ba
 |---|---|
 | 0. Scope and decisions | The 16 decisions (with the reasoning), the nine ways to sign in and the 2FA/MFA analysis |
 | 1. Data model | 31 tables by module, with columns, indexes and the relationship diagram |
-| 2. Use cases | 141 use cases, with endpoint, caller and effect, filterable; state diagrams and request/response examples |
+| 2. Use cases | 145 use cases, with endpoint, caller and effect, filterable; state diagrams and request/response examples |
 | 3. Architecture | Modules, dependency rules, stack and the AWS infrastructure, with costs |
 | 4. Capacity | Estimates for 10 thousand, 100 thousand and 1 million users, and what gets tight first |
 | 5. Operations | Service level objectives (SLOs), security, concurrency, data protection and observability |
@@ -577,6 +604,7 @@ fonts, diagrams and hand-drawn sketches). It's organised in the same parts as Ba
 
 ### Tables by module
 
+<!-- generated:tables -->
 | Module | Tables |
 |---|---|
 | `user` | `users`, `refresh_tokens`, `verification_codes`, `user_identities`, `passkeys`, `webauthn_challenges`, `totp_credentials`, `recovery_codes` |
@@ -588,6 +616,7 @@ fonts, diagrams and hand-drawn sketches). It's organised in the same parts as Ba
 | `payment` | `shop_payment_accounts`, `booking_payments`, `refund_requests` |
 | `messaging` | `conversations`, `messages` |
 | `shared` | `outbox_events`, `shedlock` |
+<!-- /generated:tables -->
 
 ### Core model rules
 
@@ -702,23 +731,31 @@ Dependencies always point inwards: `infrastructure → application → domain`.
 
 ### Who depends on whom
 
+<!-- generated:deps -->
 | Caller | Public use case | What for |
 |---|---|---|
-| `booking` | `shop.QuoteServices`, `shop.GetShopBookingRules`, `shop.GetShopRole` | Prices, durations and who does the services; confirmation mode, deadlines and no-shows; who approves |
-| `booking` | `schedule.ReserveSlots` | Take the booking's slots |
-| `booking` | `review.GetCustomerRating` | The customer's rating, for the barbershop |
-| `booking` | `user.GetAccountStatus` | Verified phone to book |
-| `schedule` | `shop.GetShopBookingRules`, `shop.QuoteServices`, `shop.GetShopRole` | Hours, interval, time zone and notice; who does the services; who can change a schedule |
-| `shop` | `user.GetAccountStatus`, `user.FindUserByPhone` | Verified phone to create a barbershop; notify invitees who already have an account |
-| `review` | `booking.GetBookingParticipants` | Who can review, and until when |
-| `payment` | `booking.GetBookingParticipants`, `shop.GetShopRole` | Who declares, confirms and requests refunds |
-| `messaging` | `booking.HasBookingWithShop`, `shop.GetShopRole` | Only customers with a booking open a chat; who answers for the barbershop |
+| `booking` | `shop.QuoteServices` | price, duration and who does the services |
+| `booking` | `shop.GetShopBookingRules` | confirmation mode, deadlines and no-shows |
+| `booking` | `shop.GetShopRole` | who approves, cancels and sees the schedule |
+| `booking` | `schedule.ReserveSlots` | take the booking's slots |
+| `booking` | `review.GetCustomerRating` | the customer's rating, for the barbershop |
+| `booking` | `user.GetAccountStatus` | verified phone to book |
+| `schedule` | `shop.GetShopBookingRules` | hours, interval, time zone and notice |
+| `schedule` | `shop.QuoteServices` | who does the requested services |
+| `schedule` | `shop.GetShopRole` | who can change a barber's schedule |
+| `shop` | `user.GetAccountStatus` | verified phone to create a barbershop |
+| `shop` | `user.FindUserByPhone` | notify invitees who already have an account |
+| `review` | `booking.GetBookingParticipants` | who can review, and until when |
+| `payment` | `booking.GetBookingParticipants` | who declares, confirms and requests refunds |
+| `payment` | `shop.GetShopRole` | the barbershop's owner and barbers |
+| `messaging` | `booking.HasBookingWithShop` | only customers with a booking open a chat |
+| `messaging` | `shop.GetShopRole` | who answers for the barbershop |
 
 | Event | Published by | Heard by |
 |---|---|---|
 | `UserAccountDeleted` | `user` | `shop`, `booking`, `review` |
 | `LoginFromNewDevice`, `MfaChanged`, `RecoveryCodeUsed` | `user` | `notification` |
-| `ShopApproved`, `ShopRejected`, `InviteCreated` | `shop` | `notification` |
+| `ShopApproved`, `ShopRejected`, `ShopReinstated`, `InviteCreated` | `shop` | `notification` |
 | `ShopSuspended` | `shop` | `booking`, `notification` |
 | `ShopScheduleChanged` | `shop` | `schedule` |
 | `MemberRemoved` | `shop` | `booking`, `schedule` |
@@ -728,6 +765,7 @@ Dependencies always point inwards: `infrastructure → application → domain`.
 | `ReviewPublished`, `ReviewHidden` | `review` | `notification` |
 | `PaymentDeclared`, `RefundRequested`, `RefundSent` | `payment` | `notification` |
 | `MessageSent` | `messaging` | `notification` |
+<!-- /generated:deps -->
 
 - Nobody depends on `notification`, and `user` calls nobody.
 - For calls, only `booking` ↔ `review` depend on each other both ways (the customer's rating and the booking's
@@ -776,7 +814,7 @@ the images again.
   The second zone exists because AWS requires it for the load balancer and the database subnet group.
 - **Production:** in `af-south-1` (Cape Town), the region closest to Angola, for about US$290/month plus outbound
   traffic:
-  - 2 to 6 ECS Fargate ARM64 tasks in private subnets, one per zone;
+  - 2 ECS Fargate ARM64 tasks in private subnets, one per zone, scaling up to 6 (3 to 8 across 3 zones in phase 3);
   - 1 NAT Gateway for outbound traffic;
   - RDS PostgreSQL 18 + PostGIS Multi-AZ (db.t4g.small), with a standby replica that takes over if a zone goes down;
   - ALB with AWS WAF, which handles per-IP limits without Redis;
@@ -791,10 +829,10 @@ the images again.
   | RDS (db.t4g.small Multi-AZ, 50 GB gp3) | 75 | AWS price: US$0.082/hour, US$0.302 per GB-month |
   | NAT | 42 | AWS price: US$0.057/hour, plus US$0.057 per GB processed |
   | Load balancer | 29 | AWS price: US$0.03/hour, plus about 1 LCU at US$0.0095 |
-  | WAF | 27 | AWS price: US$5 per ACL, US$1 per rule, US$0.60 per million requests (~30 million) |
-  | CloudWatch | 15 | estimate |
+  | WAF | 28 | AWS price: US$5 per ACL, US$1 per rule (5 rules), US$0.60 per million requests (~30 million) |
+  | CloudWatch | 15 | AWS price: US$0.30 per metric (~30, filtered), US$0.10 per alarm, about US$0.50 per GB of logs; usage estimated |
   | IPv4 (3 addresses) | 11 | AWS price: US$0.005/hour each |
-  | S3, Secrets Manager, ECR, Route 53 | 10 | estimate |
+  | S3, Secrets Manager, ECR, Route 53 | 8 | AWS price: US$0.40 per secret, US$0.10 per GB in ECR, US$0.50 per DNS zone; S3 usage estimated |
 
 - **A single NAT:** if zone A goes down, zone B has no way out to the providers. One NAT per zone costs about US$42/month
   more.
@@ -876,7 +914,9 @@ Example: a waiting list for a full time slot (phase 2).
    - a parallel-request test, if there's contention.
 
    Packages are mirrored in `src/test/java`.
-7. **Design:** update [docs/design.html](docs/design.html) and this README.
+7. **Design:** add the use case to [docs/design-data.js](docs/design-data.js), in Portuguese and English, and run
+   `node scripts/readme-tables.js`. It rewrites the generated tables in both READMEs; `--check` fails if they're out
+   of date.
 
 ### Naming conventions
 
@@ -968,8 +1008,8 @@ the slot job takes more than 1 minute to delete.
 | RDS, storage, replica and Proxy | 75 | ≈ 150 | ≈ 576 |
 | Valkey | — | 48 | 48 |
 | NAT (1, 2 and 3) | 42 | 84 | 126 |
-| ALB, WAF and IPv4 | 67 | ≈ 56 | ≈ 94 |
-| CloudWatch, CloudFront, S3, secrets, ECR and DNS (estimate) | ≈ 28 | ≈ 50 | ≈ 130 |
+| ALB, WAF and IPv4 | 68 | ≈ 56 | ≈ 94 |
+| CloudWatch, CloudFront, S3, secrets, ECR and DNS (AWS prices, estimated usage) | ≈ 23 | ≈ 50 | ≈ 130 |
 | **Total**, before outbound traffic | **≈ 290** | **≈ 490** | **≈ 1,200** |
 
 ## Next steps

@@ -225,7 +225,7 @@ footer { color: var(--muted); font-size: 14px; border-top: 1px solid var(--line)
   <nav class="toc" aria-label="Partes">
     <div class="toc-g"><a href="#estado"><b>0</b>Âmbito e decisões</a><span><a href="#autenticacao">Autenticação e 2FA</a><a href="#riscos">Riscos</a><a href="#historico">Revisões</a></span></div>
     <div class="toc-g"><a href="#modelo"><b>1</b>Modelo de dados</a><span><a href="#agenda">Agenda</a><a href="#ciclos">Ciclos de vida</a></span></div>
-    <div class="toc-g"><a href="#casos-de-uso"><b>2</b>Casos de uso</a><span><a href="#exemplos">Exemplos de pedidos</a></span></div>
+    <div class="toc-g"><a href="#casos-de-uso"><b>2</b>Casos de uso</a><span><a href="#convencoes">Convenções da API</a><a href="#exemplos">Exemplos de pedidos</a></span></div>
     <div class="toc-g"><a href="#arquitetura"><b>3</b>Arquitetura</a><span><a href="#visao">Visão geral</a><a href="#dependencias">Dependências</a><a href="#aws">Na AWS</a><a href="#custos">Custos</a></span></div>
     <div class="toc-g"><a href="#capacidade"><b>4</b>Capacidade</a><span><a href="#capacidade">10 mil, 100 mil, 1 milhão</a></span></div>
     <div class="toc-g"><a href="#operacao"><b>5</b>Operação</a></div>
@@ -273,6 +273,12 @@ footer { color: var(--muted); font-size: 14px; border-top: 1px solid var(--line)
         <tr><td class="num">14</td><td>Senhas</td><td>Argon2id (<code>Argon2PasswordEncoder</code> do Spring Security, com BouncyCastle)</td><td class="fx">É a recomendação atual da OWASP e custa uma biblioteca a mais.</td></tr>
         <tr><td class="num">15</td><td>Eventos entre módulos</td><td>Eventos do Spring na mesma transação, mais um outbox por job (sem broker) para o que sai da aplicação</td><td class="fx">É a mesma solução do Bazza: nada se perde e nada sai de uma transação desfeita.</td></tr>
         <tr><td class="num">16</td><td>Pacote raiz</td><td><code>ao.okuteta</code></td><td class="fx">Vem do nome da pasta do projeto.</td></tr>
+        <tr><td class="num">17</td><td>Primeiro administrador</td><td>Variável <code>ADMIN_PHONES</code>: no arranque, as contas com esses telemóveis verificados passam a ADMIN (<code>PromoteAdmins</code>)</td><td class="fx">Sem SQL à mão nem migration por ambiente. Tirar um número da lista e reiniciar devolve a conta a USER.</td></tr>
+        <tr><td class="num">18</td><td>Barbearia suspensa</td><td>O administrador pode reabri-la (<code>ReinstateShop</code>: SUSPENDED → APPROVED, com motivo)</td><td class="fx">Volta à busca e aceita marcações logo, porque os slots continuaram a ser gerados. As marcações canceladas na suspensão não voltam.</td></tr>
+        <tr><td class="num">19</td><td>Consentimento (Lei n.º 22/11)</td><td><code>terms_version</code> e <code>terms_accepted_at</code> em <code>users</code>; a versão atual vem de <code>TERMS_VERSION</code></td><td class="fx">Uma versão nova dos termos pede nova aceitação: até lá, a API responde 403 <code>TERMS_REQUIRED</code> a tudo menos <code>/auth/*</code> e <code>/me/terms</code>.</td></tr>
+        <tr><td class="num">20</td><td>Conta sem 2FA nem códigos</td><td>O administrador desliga o 2FA depois de confirmar a identidade fora da app (por exemplo, videochamada com o BI): <code>ResetMfaByAdmin</code></td><td class="fx">Fica gravado quem o fez (<code>mfa_reset_by</code>). Nas 24 h seguintes não há ações sensíveis, e o dono recebe avisos por SMS e e-mail: quem roubou a conta não consegue mudar a senha nem as contas de pagamento antes de o dono reagir.</td></tr>
+        <tr><td class="num">21</td><td>Recusa em "qualquer um"</td><td>A marcação fica REJECTED e o cliente marca de novo; não passa a outro barbeiro</td><td class="fx">Simples e previsível. O aviso leva um atalho para os outros horários.</td></tr>
+        <tr><td class="num">22</td><td>Convenções da API</td><td>Parâmetros em inglês, paginação por cursor, horas em UTC e repetição segura (ver <a href="#convencoes">Convenções</a>)</td><td class="fx">Os caminhos e o JSON já estavam em inglês; os parâmetros de query estavam em português.</td></tr>
       </tbody>
     </table>
   </div>
@@ -394,18 +400,14 @@ sequenceDiagram
         <tr><td>Dados pessoais fora de Angola</td><td class="fx">A Lei n.º 22/11 exige que a transferência para fora do país passe pela APD, seja qual for a região da AWS.</td><td class="fx">Fazer o pedido à APD antes de abrir ao público.</td><td><span class="risk-state open">em aberto</span></td></tr>
         <tr><td>Aprovações de terceiros</td><td class="fx">O template de WhatsApp (Meta), a revisão do Facebook Login e a conta Apple Developer atrasam o lançamento.</td><td class="fx">Começar os pedidos já. Sem eles, a app só oferece SMS, e-mail, Google e passkeys.</td><td><span class="risk-state open">em aberto</span></td></tr>
         <tr><td>Domínio <code>.ao</code></td><td class="fx">Sem domínio, as passkeys e os links por e-mail não abrem a app.</td><td class="fx">Registar o domínio no registo angolano antes do passo 2.</td><td><span class="risk-state open">em aberto</span></td></tr>
-        <tr><td>Custos da AWS</td><td class="fx">A fatura sai acima do previsto.</td><td class="fx">Os preços por hora foram confirmados na API pública da AWS; CloudWatch, Secrets Manager, S3, ECR e Route 53 continuam estimativas. Alarme no AWS Budgets.</td><td><span class="risk-state ok">mitigado</span></td></tr>
+        <tr><td>Custos da AWS</td><td class="fx">A fatura sai acima do previsto.</td><td class="fx">Os preços unitários foram confirmados na API pública da AWS; o que ainda é estimativa é o uso (GB de logs, pedidos, tráfego). Alarme no AWS Budgets.</td><td><span class="risk-state ok">mitigado</span></td></tr>
+        <tr><td>Métricas no CloudWatch</td><td class="fx">Cada métrica própria custa 0,30 US$ por mês, e o Micrometer exporta centenas por omissão (JVM, HTTP por rota e por estado): passaria dos 50 US$/mês.</td><td class="fx">Um <code>MeterFilter</code> só deixa sair cerca de 30 métricas (as de negócio e as dos alarmes). O resto fica em <code>/actuator/metrics</code>.</td><td><span class="risk-state ok">mitigado</span></td></tr>
+        <tr><td>Busca e horários públicos</td><td class="fx">Sem limite, alguém pode varrer todas as barbearias ou carregar o banco.</td><td class="fx">Uma regra geral do WAF por IP (por exemplo, 1.000 pedidos em 5 min), mais folgada do que a de <code>/auth/*</code>, que é apertada.</td><td><span class="risk-state ok">mitigado</span></td></tr>
       </tbody>
     </table>
   </div>
   <div class="callout">
-    <p><strong>Questões em aberto, sem resposta no design:</strong></p>
-    <ul class="plain">
-      <li>Como se cria o primeiro administrador: por migration com um telemóvel definido numa variável de ambiente, ou por comando?</li>
-      <li>Uma barbearia suspensa pode voltar? Hoje só existe <code>SuspendShop</code>, sem o caminho inverso.</li>
-      <li>Consentimento no registo (termos de uso e política de privacidade, Lei n.º 22/11): falta a coluna da versão aceite e a data.</li>
-      <li>Quem perde a app autenticadora e os códigos de recuperação só é recuperado manualmente, e o processo do suporte não está definido.</li>
-    </ul>
+    <p><strong>Questões em aberto:</strong> nenhuma. As quatro que havia foram respondidas na versão 12 (decisões 17 a 20): o primeiro administrador vem de <code>ADMIN_PHONES</code>, uma barbearia suspensa pode ser reaberta, o consentimento fica em <code>users</code>, e o administrador recupera uma conta sem 2FA com 24 h de espera.</p>
   </div>
 </section>
 
@@ -424,6 +426,7 @@ sequenceDiagram
         <tr><td class="num">6–8</td><td class="fx">Arquitetura na AWS (af-south-1, Fargate, RDS Multi-AZ, WAF e 1 NAT), com custos e desenhos à mão como os do Bazza.</td></tr>
         <tr><td class="num">9</td><td class="fx">Visão geral, dependências entre módulos, ciclos de vida, exemplos de pedidos, riscos, revisões, filtros nos casos de uso e índice por partes. Entraram 6 casos de uso públicos que faltavam, os avisos de segurança passaram do <code>user</code> para o <code>notification</code>, os custos foram confirmados na API de preços da AWS e o exemplo da agenda foi corrigido (às 14:30 o Mário não cabe).</td></tr>
         <tr><td class="num">11</td><td class="fx">Capacidade e roadmap de escala para 10 mil, 100 mil e 1 milhão de utilizadores, com o que entra em cada fase, os gatilhos para passar à seguinte e o custo. A estimativa de marcações baixou de 3 por barbeiro por dia para 1,5 por cliente ativo por mês.</td></tr>
+        <tr><td class="num">12</td><td class="fx">As quatro questões em aberto respondidas (decisões 17 a 20) e a recusa em "qualquer um" (21), com 4 casos de uso novos (<code>AcceptTerms</code>, <code>ResetMfaByAdmin</code>, <code>PromoteAdmins</code>, <code>ReinstateShop</code>). Convenções da API: parâmetros em inglês, cursor, UTC e repetição segura nos pagamentos. Regra geral do WAF para a busca e os horários. Preços do CloudWatch, Secrets Manager, ECR e Route 53 confirmados, com o filtro de métricas. Os dados passaram para <code>design-data.js</code>, que gera as tabelas dos README.</td></tr>
       </tbody>
     </table>
   </div>
@@ -638,6 +641,7 @@ stateDiagram-v2
   PENDING_REVIEW --> REJECTED: administrador
   REJECTED --> PENDING_REVIEW: dono corrige
   APPROVED --> SUSPENDED: administrador
+  SUSPENDED --> APPROVED: administrador reabre
 </pre></div></div>
     <div><h3>Avaliação (<code>reviews</code>)</h3><div class="diagram"><pre class="mermaid">
 stateDiagram-v2
@@ -654,7 +658,7 @@ stateDiagram-v2
   PENDING --> EXPIRED: 7 dias
 </pre></div></div>
   </div>
-  <p>Uma barbearia <code>SUSPENDED</code> não tem caminho de volta no MVP: ver as <a href="#riscos">questões em aberto</a>.</p>
+  <p>O consentimento não tem estados: é a versão dos termos aceite em <code>users.terms_version</code>, comparada com <code>TERMS_VERSION</code>.</p>
 </section>
 </div>
 
@@ -686,7 +690,7 @@ sequenceDiagram
   participant API as Okuteta API
   participant DB as PostgreSQL
   participant B as App do barbeiro
-  C->>API: GET /shops/{id}/availability?data=sábado&servicos=corte,barba
+  C->>API: GET /shops/{id}/availability?date=2026-11-07&serviceIds=corte,barba
   API->>DB: slots livres seguidos de quem faz os serviços
   API-->>C: horários livres (sem barbeiro: união de todos)
   C->>API: POST /shops/{id}/bookings (Idempotency-Key, MULTICAIXA_EXPRESS)
@@ -708,6 +712,26 @@ sequenceDiagram
   </div>
 </section>
 
+<section id="convencoes">
+  <div class="eyebrow">Contrato</div>
+  <h2>Convenções da API</h2>
+  <div class="wide">
+    <table class="grid">
+      <thead><tr><th>Tema</th><th>Regra</th><th>Exemplo</th></tr></thead>
+      <tbody>
+        <tr><td>Nomes</td><td class="fx">Caminhos, parâmetros de query e campos do JSON em inglês, com o JSON em camelCase. Os textos para a pessoa (erros, avisos) em português.</td><td class="ep">GET /shops/{id}/availability?date=2026-11-07&amp;serviceIds=…</td></tr>
+        <tr><td>Paginação</td><td class="fx">Por cursor nas listas que crescem: <code>?limit=</code> (20 por omissão, máximo 100) e <code>?cursor=</code>. A resposta traz <code>nextCursor</code>, nulo na última página. O cursor é opaco (data e id em base64), e a ordem por omissão é do mais recente para o mais antigo.</td><td class="ep">{ "items": [ … ], "nextCursor": "MjAyNi0xMS0w…" }</td></tr>
+        <tr><td>Instantes</td><td class="fx">ISO 8601 em UTC nas respostas. Nos pedidos aceita-se o deslocamento.</td><td class="ep">"startsAt": "2026-11-07T10:30:00Z"</td></tr>
+        <tr><td>Dias e horas da agenda</td><td class="fx">Locais, no fuso da barbearia, que vem na resposta.</td><td class="ep">"date": "2026-11-07", "start": "11:30", "timezone": "Africa/Luanda"</td></tr>
+        <tr><td>Dinheiro</td><td class="fx">Inteiros em cêntimos, com a moeda.</td><td class="ep">"totalCents": 450000, "currency": "AOA"</td></tr>
+        <tr><td>Repetir um pedido</td><td class="fx">Criar marcação aceita <code>Idempotency-Key</code> (única por cliente). As operações de pagamento e reembolso são seguras por estado: repetidas, devolvem o estado atual em vez de erro. As mensagens usam <code>clientMessageId</code>.</td><td class="ep">Idempotency-Key: 6f1c2a9e-…</td></tr>
+        <tr><td>Erros</td><td class="fx">RFC 9457 com um <code>code</code> estável: <code>VALIDATION_FAILED</code>, <code>UNAUTHORIZED</code>, <code>STEP_UP_REQUIRED</code>, <code>TERMS_REQUIRED</code>, <code>FORBIDDEN</code>, <code>RESOURCE_NOT_FOUND</code>, <code>CONFLICT</code>, <code>BUSINESS_RULE_VIOLATION</code>, <code>TOO_MANY_REQUESTS</code>, <code>SERVICE_UNAVAILABLE</code>.</td><td class="ep">403 { "code": "TERMS_REQUIRED", … }</td></tr>
+        <tr><td>Versões</td><td class="fx">Tudo sob <code>/api/v1</code>. Campos novos não mudam a versão; uma mudança que parte a app vai para <code>/api/v2</code>, com as duas versões no ar durante 6 meses.</td><td class="ep">/api/v1/…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
 <section id="exemplos">
   <div class="eyebrow">Contrato</div>
   <h2>Exemplos de pedidos e respostas</h2>
@@ -716,7 +740,7 @@ sequenceDiagram
     <div>
       <h3>Horários livres</h3>
 <pre class="code">GET /api/v1/shops/0192…kilamba/availability
-    ?data=2026-11-07&amp;servicos=0192…corte,0192…barba
+    ?date=2026-11-07&amp;serviceIds=0192…corte,0192…barba
 
 <span class="c">200</span>
 {
@@ -949,16 +973,16 @@ POST /api/v1/bookings/0192…/payment/declare
     <table class="grid">
       <thead><tr><th>Serviço</th><th>Para que serve</th><th>Produção</th><th>Teste</th></tr></thead>
       <tbody>
-        <tr><td class="uc">ECS Fargate <span class="src">AWS</span></td><td>Corre a API e os jobs. Escala de 2 a 6 tarefas quando o CPU passa dos 60%. ARM: 0,04372 US$ por vCPU-hora e 0,0048 US$ por GB-hora.</td><td class="fx">2 tarefas, 1 vCPU e 2 GB, sub-redes privadas · ≈ 78 US$</td><td class="fx">1 tarefa, 0,5 vCPU e 1 GB, IP público · ≈ 20 US$</td></tr>
+        <tr><td class="uc">ECS Fargate <span class="src">AWS</span></td><td>Corre a API e os jobs. Na fase 1, 2 tarefas que escalam até 6 quando o CPU passa dos 60%; na fase 3 passam a ser de 3 a 8, em 3 zonas (ver <a href="#escala">Roadmap de escala</a>). ARM: 0,04372 US$ por vCPU-hora e 0,0048 US$ por GB-hora.</td><td class="fx">2 tarefas, 1 vCPU e 2 GB, sub-redes privadas · ≈ 78 US$</td><td class="fx">1 tarefa, 0,5 vCPU e 1 GB, IP público · ≈ 20 US$</td></tr>
         <tr><td class="uc">RDS PostgreSQL 18 <span class="src">AWS</span></td><td>Banco com PostGIS, cifrado com KMS e com restauração para qualquer minuto dos últimos 7 dias. db.t4g.small Multi-AZ a 0,082 US$/h e gp3 Multi-AZ a 0,302 US$ por GB-mês; db.t4g.micro numa zona a 0,021 US$/h e gp3 a 0,151.</td><td class="fx">db.t4g.small Multi-AZ, 50 GB gp3 a crescer sozinho · ≈ 75 US$ (60 da instância, 15 do disco)</td><td class="fx">db.t4g.micro numa zona, 20 GB · ≈ 18 US$</td></tr>
         <tr><td class="uc">Application Load Balancer <span class="src">AWS</span></td><td>Termina o TLS (ACM, TLS 1.2+), redireciona HTTP para HTTPS e confere a saúde em <code>/actuator/health</code>. 0,03 US$/h, mais 0,0095 US$ por LCU-hora.</td><td class="fx">≈ 29 US$ (22 fixos, ~1 LCU em média)</td><td class="fx">≈ 23 US$</td></tr>
-        <tr><td class="uc">AWS WAF <span class="src">AWS</span></td><td>Limites por IP em <code>/auth/*</code> partilhados por todas as tarefas (sem Redis), mais as regras geridas da AWS contra ataques comuns. 5 US$ por ACL, 1 US$ por regra e 0,60 US$ por milhão de pedidos.</td><td class="fx">≈ 27 US$ (1 ACL, 4 regras, ~30 mi pedidos/mês)</td><td class="fx">não tem</td></tr>
+        <tr><td class="uc">AWS WAF <span class="src">AWS</span></td><td>Limites por IP partilhados por todas as tarefas (sem Redis): um apertado em <code>/auth/*</code> e um geral, mais folgado, para a busca e os horários públicos. Mais as regras geridas da AWS contra ataques comuns. 5 US$ por ACL, 1 US$ por regra e 0,60 US$ por milhão de pedidos.</td><td class="fx">≈ 28 US$ (1 ACL, 5 regras, ~30 mi pedidos/mês)</td><td class="fx">não tem</td></tr>
         <tr><td class="uc">NAT Gateway <span class="src">AWS</span></td><td>Saída das tarefas privadas para o Twilio, o Brevo, o Firebase e os provedores de login. 0,057 US$/h, mais 0,057 US$ por GB processado.</td><td class="fx">1 numa zona · ≈ 42 US$, mais o tráfego</td><td class="fx">não tem: a tarefa usa IP público</td></tr>
         <tr><td class="uc">IPv4 públicos <span class="src">AWS</span></td><td>A AWS cobra 0,005 US$/h por cada IPv4 público.</td><td class="fx">ALB (2) e NAT (1) · ≈ 11 US$</td><td class="fx">ALB (2) e tarefa (1) · ≈ 11 US$</td></tr>
         <tr><td class="uc">S3 <span class="src est">estimativa</span></td><td>Bucket privado com Block Public Access, cifrado, com versões nos comprovativos e acesso da API por endpoint de gateway (grátis).</td><td class="fx">≈ 2 US$</td><td class="fx">≈ 1 US$</td></tr>
-        <tr><td class="uc">Secrets Manager <span class="src est">estimativa</span></td><td>Guarda a senha do banco (rodada pelo RDS), a chave do JWT, a chave AES do TOTP, o Twilio, o Firebase e as chaves da Apple.</td><td class="fx">~10 segredos · ≈ 5 US$</td><td class="fx">≈ 5 US$</td></tr>
-        <tr><td class="uc">CloudWatch + SNS <span class="src est">estimativa</span></td><td>Logs em JSON, métricas do Micrometer e alarmes por e-mail.</td><td class="fx">logs 30 dias · ≈ 15 US$</td><td class="fx">logs 7 dias · ≈ 3 US$</td></tr>
-        <tr><td class="uc">ECR e Route 53 <span class="src est">estimativa</span></td><td>Imagens Docker (as últimas 20) e DNS. O domínio <code>.ao</code> é registado no registo angolano e delegado para o Route 53.</td><td class="fx">≈ 3 US$</td><td class="fx">≈ 2 US$</td></tr>
+        <tr><td class="uc">Secrets Manager <span class="src">AWS</span></td><td>Guarda a senha do banco (rodada pelo RDS), a chave do JWT, a chave AES do TOTP, o Twilio, o Firebase e as chaves da Apple. 0,40 US$ por segredo por mês.</td><td class="fx">~10 segredos · ≈ 4 US$</td><td class="fx">≈ 4 US$</td></tr>
+        <tr><td class="uc">CloudWatch + SNS <span class="src">AWS</span> <span class="src est">uso estimado</span></td><td>Logs em JSON, métricas do Micrometer e alarmes por e-mail. 0,30 US$ por métrica por mês, 0,10 US$ por alarme e cerca de 0,50 US$ por GB de logs. Só ~30 métricas saem para o CloudWatch (<code>MeterFilter</code>).</td><td class="fx">logs 30 dias, 30 métricas, 10 alarmes · ≈ 15 US$</td><td class="fx">logs 7 dias · ≈ 3 US$</td></tr>
+        <tr><td class="uc">ECR e Route 53 <span class="src">AWS</span></td><td>Imagens Docker (as últimas 20, a 0,10 US$ por GB) e DNS (0,50 US$ por zona, mais as consultas). O domínio <code>.ao</code> é registado no registo angolano e delegado para o Route 53.</td><td class="fx">≈ 2 US$</td><td class="fx">≈ 2 US$</td></tr>
         <tr><td class="uc"><b>Total</b></td><td></td><td class="num">≈ 290 US$/mês</td><td class="num">≈ 85 US$/mês</td></tr>
       </tbody>
     </table>
@@ -1098,7 +1122,8 @@ POST /api/v1/bookings/0192…/payment/declare
     <h3>Segurança</h3>
     <ul>
       <li>JWT de 15 min e refresh token rotativo: o reuso de um token antigo revoga a sessão inteira.</li>
-      <li>Senhas com Argon2id. 5 senhas erradas bloqueiam o login 15 min, e há limite de pedidos por IP no login e no envio de códigos e links.</li>
+      <li>Senhas com Argon2id. 5 senhas erradas bloqueiam o login 15 min. O WAF limita pedidos por IP: de forma apertada no login e no envio de códigos e links, e de forma geral na busca e nos horários públicos.</li>
+      <li>Termos aceites: sem a versão atual dos termos, a API só deixa entrar e aceitar (<code>TERMS_REQUIRED</code>).</li>
       <li>2FA opcional para todos, e confirmação de 5 min (<code>auth_time</code>) antes de ações sensíveis para todos, incluindo mudar para onde vai o dinheiro da barbearia.</li>
       <li>Os tokens intermédios (registo social e 2FA) têm público próprio e não valem como sessão.</li>
       <li>Para marcar e para criar barbearia é preciso ter o telemóvel verificado.</li>
@@ -1133,6 +1158,7 @@ POST /api/v1/bookings/0192…/payment/declare
       <li><code>/actuator/health</code> confere o PostgreSQL.</li>
       <li>Logs em JSON com <code>traceId</code>, ligados por <code>LOG_FORMAT=json</code>.</li>
       <li>Métricas de negócio: <code>okuteta.bookings</code> (por estado), <code>okuteta.refunds</code>, <code>okuteta.push</code> e <code>okuteta.outbox</code>.</li>
+      <li>Só cerca de 30 métricas vão para o CloudWatch (um <code>MeterFilter</code>), porque cada uma custa 0,30 US$ por mês. As outras ficam em <code>/actuator/metrics</code>.</li>
       <li>Há um alerta se o job de slots falhar, porque sem ele o último dia da janela fica sem horários.</li>
     </ul>
   </div>
@@ -1233,8 +1259,8 @@ POST /api/v1/bookings/0192…/payment/declare
         <tr><td>RDS, disco, réplica e Proxy <span class="src">AWS</span></td><td class="num">75</td><td class="num">≈ 150</td><td class="num">≈ 576</td></tr>
         <tr><td>Valkey <span class="src">AWS</span></td><td class="num">—</td><td class="num">48</td><td class="num">48</td></tr>
         <tr><td>NAT (1, 2 e 3) <span class="src">AWS</span></td><td class="num">42</td><td class="num">84</td><td class="num">126</td></tr>
-        <tr><td>ALB, WAF e IPv4 <span class="src">AWS</span></td><td class="num">67</td><td class="num">≈ 56</td><td class="num">≈ 94</td></tr>
-        <tr><td>CloudWatch, CloudFront, S3, segredos, ECR e DNS <span class="src est">estimativa</span></td><td class="num">≈ 28</td><td class="num">≈ 50</td><td class="num">≈ 130</td></tr>
+        <tr><td>ALB, WAF e IPv4 <span class="src">AWS</span></td><td class="num">68</td><td class="num">≈ 56</td><td class="num">≈ 94</td></tr>
+        <tr><td>CloudWatch, CloudFront, S3, segredos, ECR e DNS <span class="src">AWS</span> <span class="src est">uso estimado</span></td><td class="num">≈ 23</td><td class="num">≈ 50</td><td class="num">≈ 130</td></tr>
         <tr><td><b>Total</b>, sem o tráfego de saída</td><td class="num">≈ 290 US$</td><td class="num">≈ 490 US$</td><td class="num">≈ 1.200 US$</td></tr>
       </tbody>
     </table>
@@ -1246,336 +1272,8 @@ POST /api/v1/bookings/0192…/payment/declare
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/roughjs@4.6.6/bundled/rough.js"></script>
+<script src="design-data.js"></script>
 <script>
-const MODULES = [
-  { id: "user", name: "Utilizadores", pkg: "ao.okuteta.user", desc: "Conta, sessões, nove formas de entrar, passkeys e 2FA.",
-    tables: [
-      { name: "users", desc: "Uma linha por pessoa: cliente, barbeiro, dono ou administrador.", cols: [
-        ["id","uuid","v7, gerado na aplicação","PK"],["name","varchar(80)",""],["phone","varchar(16)","E.164 +244, móvel, obrigatório","UK"],["phone_verified_at","timestamptz","nulo até ao código"],
-        ["email","varchar(254)","opcional","UK"],["email_verified_at","timestamptz",""],["password_hash","varchar(128)","Argon2id; nulo em conta sem senha"],["avatar_key","varchar(200)","chave no S3"],
-        ["role","varchar(10)","USER | ADMIN"],["status","varchar(12)","ACTIVE | SUSPENDED | DELETED"],["failed_logins","smallint","5 erros → locked_until"],["locked_until","timestamptz",""],
-        ["mfa_enabled_at","timestamptz","nulo = 2FA desligado; opcional para todos"],
-        ["deleted_at","timestamptz","anonimização"],["version","int","@Version"]],
-        idx: ["UNIQUE (phone)", "UNIQUE (email)"] },
-      { name: "refresh_tokens", desc: "Uma sessão por aparelho, com rotação. É também a lista de sessões em /me/sessions.", cols: [
-        ["id","uuid","","PK"],["user_id","uuid","→ users","FK"],["family_id","uuid","reuso revoga a família"],["token_hash","char(64)","SHA-256","UK"],
-        ["device_name","varchar(80)",""],["auth_methods","varchar(60)","amr do login: pwd, sms, whatsapp, link, google, facebook, apple, passkey, totp…"],
-        ["last_used_at","timestamptz",""],["expires_at","timestamptz","30 dias"],["revoked_at","timestamptz",""],["replaced_by","uuid",""]],
-        idx: ["(user_id)"] },
-      { name: "verification_codes", desc: "Códigos de 6 dígitos (SMS, WhatsApp, e-mail) e tokens dos links por e-mail.", cols: [
-        ["id","uuid","","PK"],["user_id","uuid","→ users, nulo antes da conta","FK"],["target","varchar(254)","telemóvel ou e-mail"],
-        ["channel","varchar(8)","SMS | WHATSAPP | EMAIL"],["purpose","varchar(10)","PHONE | EMAIL | RESET | LOGIN | LINK | MFA"],
-        ["code_hash","char(64)","SHA-256 do código ou do token de 32 bytes do link"],["attempts","smallint","máximo 5"],["expires_at","timestamptz","10 min; link 15 min"],["consumed_at","timestamptz",""]],
-        idx: ["(target, purpose, consumed_at)", "UNIQUE (code_hash) — para encontrar o link"] },
-      { name: "user_identities", desc: "Ligação com a conta Google, Facebook ou Apple.", cols: [
-        ["id","uuid","","PK"],["user_id","uuid","→ users","FK"],["provider","varchar(10)","GOOGLE | FACEBOOK | APPLE"],["subject","varchar(255)","sub ou id do Facebook"],
-        ["email","varchar(254)","do provedor, pode faltar"],["email_verified","boolean","só um e-mail verificado liga contas"]],
-        idx: ["UNIQUE (provider, subject)"] },
-      { name: "passkeys", desc: "Credenciais WebAuthn, uma por aparelho ou gestor de senhas.", cols: [
-        ["id","uuid","","PK"],["user_id","uuid","→ users","FK"],["credential_id","varbinary(1023)","","UK"],["public_key","varbinary(2048)","COSE"],
-        ["sign_count","bigint","detetar credenciais copiadas"],["aaguid","uuid","modelo do autenticador"],["transports","varchar(60)","internal, hybrid…"],
-        ["backup_eligible","boolean","sincronizada (iCloud, Google)"],["name","varchar(60)","escolhido pela pessoa"],["last_used_at","timestamptz",""]],
-        idx: ["(user_id)"] },
-      { name: "webauthn_challenges", desc: "Desafios de uso único, lidos com FOR UPDATE.", cols: [
-        ["id","uuid","","PK"],["user_id","uuid","nulo no login sem utilizador","FK"],["purpose","varchar(10)","REGISTER | LOGIN | MFA | STEP_UP"],
-        ["challenge_hash","char(64)","","UK"],["expires_at","timestamptz","5 min"],["consumed_at","timestamptz",""]],
-        idx: ["(expires_at)"] },
-      { name: "totp_credentials", desc: "App autenticadora. Uma por conta.", cols: [
-        ["user_id","uuid","→ users","PK"],["secret_enc","varbinary(64)","AES-256-GCM, chave em variável de ambiente"],
-        ["confirmed_at","timestamptz","nulo até ao primeiro código certo"],["last_used_step","bigint","recusa o mesmo código duas vezes"]],
-        idx: [] },
-      { name: "recovery_codes", desc: "10 códigos de uso único, gerados quando o 2FA é ligado.", cols: [
-        ["id","uuid","","PK"],["user_id","uuid","→ users","FK"],["code_hash","char(64)",""],["used_at","timestamptz",""]],
-        idx: ["(user_id)"] },
-    ]},
-  { id: "shop", name: "Barbearias", pkg: "ao.okuteta.shop", desc: "Barbearia e as suas regras de agenda, horário, serviços, equipa, convites e aprovação.",
-    tables: [
-      { name: "shops", desc: "Só aparece na busca quando está APPROVED. Cada barbearia define o fuso, o intervalo, a antecedência e as faltas.", cols: [
-        ["id","uuid","","PK"],["owner_id","uuid","→ users","FK"],["name","varchar(80)",""],["slug","varchar(90)","endereço público","UK"],["description","varchar(500)",""],
-        ["phone","varchar(16)","público"],["address","varchar(200)",""],["city","varchar(60)",""],["province","varchar(40)",""],["latitude","numeric(9,6)",""],["longitude","numeric(9,6)",""],
-        ["location","geography(Point,4326)","só no PostgreSQL: gerada de latitude e longitude"],
-        ["cover_key","varchar(200)","chave no S3"],["status","varchar(16)","DRAFT | PENDING_REVIEW | APPROVED | REJECTED | SUSPENDED"],["review_note","varchar(300)","motivo da recusa ou suspensão"],
-        ["confirmation_mode","varchar(8)","INSTANT | MANUAL"],["cancel_notice_hours","smallint","0 a 48, por omissão 2"],
-        ["timezone","varchar(40)","por omissão Africa/Luanda"],["slot_minutes","smallint","10 | 15 | 20 | 30, por omissão 15"],
-        ["min_notice_minutes","smallint","por omissão 30"],["max_advance_days","smallint","1 a 90, por omissão 30"],
-        ["no_show_limit","smallint","0 desliga, por omissão 3"],["no_show_window_days","smallint","por omissão 90"],
-        ["version","int","@Version"],["deleted_at","timestamptz",""]],
-        idx: ["UNIQUE (slug)", "GIST (location) — migration só do PostgreSQL", "(status, created_at)"] },
-      { name: "shop_opening_hours", desc: "Horário semanal, com turnos, no fuso da barbearia.", cols: [
-        ["shop_id","uuid","→ shops","PK"],["weekday","smallint","1 = segunda … 7 = domingo","PK"],["opens_at","time","","PK"],["closes_at","time","> opens_at"]],
-        idx: ["CHECK (closes_at > opens_at)"] },
-      { name: "shop_members", desc: "Quem trabalha na barbearia. O dono também é membro. Quem volta reativa a mesma linha.", cols: [
-        ["id","uuid","","PK"],["shop_id","uuid","→ shops","FK"],["user_id","uuid","→ users","FK"],["role","varchar(8)","OWNER | BARBER"],["display_name","varchar(60)",""],
-        ["bio","varchar(300)",""],["bookable","boolean","atende marcações"],["status","varchar(8)","ACTIVE | REMOVED"],["removed_at","timestamptz",""],["version","int","@Version"]],
-        idx: ["UNIQUE (shop_id, user_id)"] },
-      { name: "shop_invites", desc: "Convite pelo telemóvel, válido 7 dias.", cols: [
-        ["id","uuid","","PK"],["shop_id","uuid","→ shops","FK"],["phone","varchar(16)","E.164"],["pending_phone","varchar(16)","= phone enquanto PENDING, nulo depois"],["invited_by","uuid","→ users","FK"],
-        ["status","varchar(10)","PENDING | ACCEPTED | DECLINED | REVOKED | EXPIRED"],["expires_at","timestamptz",""],["answered_at","timestamptz",""]],
-        idx: ["UNIQUE (shop_id, pending_phone)", "(pending_phone)"] },
-      { name: "services", desc: "O que a barbearia oferece, com duração e preço.", cols: [
-        ["id","uuid","","PK"],["shop_id","uuid","→ shops","FK"],["name","varchar(60)","Corte, Barba, Tranças…"],["description","varchar(200)",""],
-        ["duration_min","smallint","5 a 480, múltiplo de 5"],["price_cents","bigint","em cêntimos de kwanza"],["currency","char(3)","AOA"],["active","boolean",""],["sort_order","smallint",""],["version","int","@Version"]],
-        idx: ["(shop_id, active)"] },
-      { name: "member_services", desc: "Que serviços cada barbeiro faz.", cols: [
-        ["member_id","uuid","→ shop_members","PK"],["service_id","uuid","→ services","PK"]],
-        idx: [] },
-    ]},
-  { id: "schedule", name: "Agenda", pkg: "ao.okuteta.schedule", desc: "Quando cada barbeiro trabalha, e os slots gerados a partir disso.",
-    tables: [
-      { name: "working_hours", desc: "Horário semanal do barbeiro, dentro do da barbearia.", cols: [
-        ["id","uuid","","PK"],["member_id","uuid","→ shop_members","FK"],["weekday","smallint","1 a 7"],["starts_at","time",""],["ends_at","time","> starts_at"]],
-        idx: ["(member_id, weekday)"] },
-      { name: "time_off", desc: "Folgas, férias e pausas pontuais.", cols: [
-        ["id","uuid","","PK"],["member_id","uuid","→ shop_members","FK"],["starts_at","timestamptz",""],["ends_at","timestamptz",""],["reason","varchar(100)",""],["created_by","uuid","→ users","FK"]],
-        idx: ["(member_id, starts_at)"] },
-      { name: "member_slots", desc: "Um slot por intervalo de trabalho do barbeiro, gerado até max_advance_days. Fora do horário e nas folgas não há slots.", cols: [
-        ["member_id","uuid","→ shop_members","PK"],["starts_at","timestamptz","","PK"],["ends_at","timestamptz","início + slot_minutes"],["booking_id","uuid","nulo = livre","FK"]],
-        idx: ["(booking_id)", "(member_id, booking_id, starts_at)"] },
-    ]},
-  { id: "booking", name: "Marcações", pkg: "ao.okuteta.booking", desc: "Marcação de um ou mais serviços com um barbeiro, ocupando slots seguidos.",
-    tables: [
-      { name: "bookings", desc: "Guarda cópias do nome da barbearia e do barbeiro para listar sem chamar outros módulos.", cols: [
-        ["id","uuid","","PK"],["shop_id","uuid","→ shops","FK"],["member_id","uuid","barbeiro atribuído","FK"],["customer_id","uuid","→ users","FK"],["any_member","boolean","sem preferência: sorteado"],
-        ["shop_name","varchar(80)","cópia"],["member_name","varchar(60)","cópia"],
-        ["status","varchar(10)","PENDING | CONFIRMED | REJECTED | CANCELLED | COMPLETED | NO_SHOW | EXPIRED"],
-        ["starts_at","timestamptz",""],["ends_at","timestamptz","início + soma das durações"],["total_price_cents","bigint",""],["currency","char(3)","AOA"],
-        ["customer_note","varchar(300)",""],["pending_expires_at","timestamptz","MANUAL: o que vier primeiro entre 2 h e o início"],
-        ["cancelled_by","varchar(8)","CUSTOMER | SHOP | SYSTEM"],["cancel_reason","varchar(300)",""],["completed_at","timestamptz",""],
-        ["idempotency_key","varchar(64)","único por cliente"],["version","int","@Version"]],
-        idx: ["UNIQUE (customer_id, idempotency_key)", "(shop_id, starts_at)", "(customer_id, starts_at)", "(shop_id, customer_id, status, starts_at) — contar faltas", "(status, pending_expires_at)"] },
-      { name: "booking_services", desc: "Os serviços tal como estavam no momento da marcação.", cols: [
-        ["booking_id","uuid","→ bookings","PK"],["position","smallint","ordem","PK"],["service_id","uuid","→ services","FK"],["name","varchar(60)","cópia"],["duration_min","smallint","cópia"],["price_cents","bigint","cópia"]],
-        idx: [] },
-      { name: "booking_status_history", desc: "Cada mudança de estado, para resolver disputas.", cols: [
-        ["id","uuid","","PK"],["booking_id","uuid","→ bookings","FK"],["from_status","varchar(10)",""],["to_status","varchar(10)",""],["actor_id","uuid","nulo quando é o sistema"],["reason","varchar(300)",""]],
-        idx: ["(booking_id, created_at)"] },
-    ]},
-  { id: "review", name: "Avaliações", pkg: "ao.okuteta.review", desc: "Duplo-cego nos dois sentidos: o cliente avalia a barbearia e o barbeiro, e o barbeiro avalia o cliente.",
-    tables: [
-      { name: "reviews", desc: "Até duas por marcação concluída, uma por sentido. Fica PENDING até as duas existirem ou passarem 14 dias.", cols: [
-        ["id","uuid","","PK"],["booking_id","uuid","→ bookings","FK"],["direction","varchar(18)","CUSTOMER_TO_SHOP | SHOP_TO_CUSTOMER"],
-        ["shop_id","uuid","",""],["member_id","uuid","",""],["customer_id","uuid","",""],["author_id","uuid","→ users","FK"],
-        ["author_name","varchar(60)","cópia; \"Utilizador removido\" depois da exclusão"],["rating","smallint","1 a 5"],["comment","varchar(1000)",""],
-        ["reply","varchar(1000)","resposta do dono (só CUSTOMER_TO_SHOP)"],["replied_at","timestamptz",""],
-        ["status","varchar(10)","PENDING | PUBLISHED | HIDDEN"],["published_at","timestamptz",""],["hidden_reason","varchar(300)",""]],
-        idx: ["UNIQUE (booking_id, direction)", "(shop_id, status, published_at)", "(member_id, status, published_at)", "(customer_id, status, published_at)", "(status, created_at) — prazo de 14 dias"] },
-      { name: "rating_stats", desc: "Nota recalculada a partir das publicadas, sem somas acumuladas.", cols: [
-        ["subject_id","uuid","barbearia, barbeiro ou cliente","PK"],["subject_type","varchar(8)","SHOP | MEMBER | CUSTOMER"],["ratings_count","int",""],["rating_avg","numeric(3,2)",""]],
-        idx: [] },
-    ]},
-  { id: "notification", name: "Notificações", pkg: "ao.okuteta.notification", desc: "Caixa da app e push. A própria tabela serve de fila.",
-    tables: [
-      { name: "notifications", desc: "Gravada na transação do evento e enviada por um job.", cols: [
-        ["id","uuid","","PK"],["user_id","uuid","→ users","FK"],["type","varchar(40)","BOOKING_CONFIRMED…"],["title","varchar(80)",""],["body","varchar(300)",""],
-        ["data","text","JSON só com ids"],["dedupe_key","varchar(100)","ex.: reminder:{id}:24h","UK"],["read_at","timestamptz",""],
-        ["push_status","varchar(8)","PENDING | SENT | FAILED | SKIPPED"],["push_attempts","smallint","máximo 5"],["next_push_at","timestamptz",""]],
-        idx: ["(user_id, created_at)", "(push_status, next_push_at)"] },
-      { name: "device_tokens", desc: "Um token FCM por aparelho.", cols: [
-        ["id","uuid","","PK"],["user_id","uuid","→ users","FK"],["token","varchar(255)","","UK"],["platform","varchar(8)","ANDROID | IOS"],["last_seen_at","timestamptz",""]],
-        idx: ["(user_id)"] },
-    ]},
-  { id: "payment", name: "Pagamentos", pkg: "ao.okuteta.payment", desc: "O cliente paga direto à barbearia, e a plataforma regista o pagamento e o reembolso.",
-    tables: [
-      { name: "shop_payment_accounts", desc: "Onde a barbearia recebe. Desativar e voltar a ativar usa a mesma linha.", cols: [
-        ["id","uuid","","PK"],["shop_id","uuid","→ shops","FK"],["method","varchar(20)","MULTICAIXA_EXPRESS | UNITEL_MONEY | AFRIMONEY | BANK_TRANSFER"],
-        ["account_ref","varchar(40)","telemóvel ou IBAN"],["holder_name","varchar(80)",""],["active","boolean",""]],
-        idx: ["UNIQUE (shop_id, method)"] },
-      { name: "booking_payments", desc: "Um por marcação.", cols: [
-        ["id","uuid","","PK"],["booking_id","uuid","→ bookings","UK"],["shop_id","uuid","",""],["method","varchar(20)","CASH | MULTICAIXA_EXPRESS | UNITEL_MONEY | AFRIMONEY | BANK_TRANSFER"],
-        ["amount_cents","bigint","cópia da marcação"],["currency","char(3)","AOA"],["status","varchar(10)","PENDING | DECLARED | RECEIVED | DISPUTED | CANCELLED | REFUNDED"],
-        ["proof_key","varchar(200)","comprovativo no S3"],["declared_at","timestamptz",""],["received_at","timestamptz",""],["received_by","uuid","→ users","FK"],["version","int","@Version"]],
-        idx: ["(shop_id, status, received_at)"] },
-      { name: "refund_requests", desc: "Um por pagamento, sempre do valor pago.", cols: [
-        ["id","uuid","","PK"],["payment_id","uuid","→ booking_payments","UK"],["booking_id","uuid","",""],["amount_cents","bigint","= valor pago"],
-        ["status","varchar(10)","REQUESTED | SENT | CONFIRMED | DISPUTED"],["proof_key","varchar(200)","comprovativo da devolução"],
-        ["sent_at","timestamptz",""],["confirmed_at","timestamptz","pelo cliente, ou 7 dias depois de SENT"],["resolution_note","varchar(300)","decisão do administrador"],["version","int","@Version"]],
-        idx: ["(status, sent_at)"] },
-    ]},
-  { id: "messaging", name: "Mensagens", pkg: "ao.okuteta.messaging", desc: "Conversa entre o cliente e a barbearia, com contactos mascarados; do lado da barbearia, respondem o dono e os barbeiros.",
-    tables: [
-      { name: "conversations", desc: "Uma por cliente e barbearia.", cols: [
-        ["id","uuid","","PK"],["shop_id","uuid","→ shops","FK"],["customer_id","uuid","→ users","FK"],["last_message_at","timestamptz",""],
-        ["customer_read_at","timestamptz","nunca recua"],["shop_read_at","timestamptz","nunca recua"],["closed_at","timestamptz",""]],
-        idx: ["UNIQUE (shop_id, customer_id)", "(shop_id, last_message_at)"] },
-      { name: "messages", desc: "Texto até 2000 caracteres, gravado já mascarado.", cols: [
-        ["id","uuid","","PK"],["conversation_id","uuid","→ conversations","FK"],["sender_id","uuid","→ users","FK"],["sender_side","varchar(8)","CUSTOMER | SHOP"],
-        ["body","varchar(2000)","telefones e e-mails trocados por •••"],["client_message_id","uuid","contra duplicados"]],
-        idx: ["UNIQUE (sender_id, client_message_id)", "(conversation_id, created_at)"] },
-    ]},
-  { id: "shared", name: "Infraestrutura comum", pkg: "ao.okuteta.shared", desc: "Eventos para fora da aplicação, uploads e trava dos jobs.",
-    tables: [
-      { name: "outbox_events", desc: "Gravado na mesma transação e entregue por um job.", cols: [
-        ["id","uuid","","PK"],["event_type","varchar(60)",""],["aggregate_id","uuid",""],["payload","text","JSON"],["attempts","smallint","máximo 5"],
-        ["next_attempt_at","timestamptz",""],["published_at","timestamptz",""],["last_error","varchar(500)",""]],
-        idx: ["(published_at, next_attempt_at)"] },
-      { name: "shedlock", desc: "Garante que cada job corre numa só instância.", cols: [
-        ["name","varchar(64)","","PK"],["lock_until","timestamptz",""],["locked_at","timestamptz",""],["locked_by","varchar(255)",""]],
-        idx: [] },
-    ]},
-];
-
-const USECASES = {
-  user: [
-    ["RegisterUser","","POST /auth/register","Visitante","Cria a conta com nome, telemóvel (+244, móvel, conferido com libphonenumber), e-mail opcional e senha opcional (Argon2id), e envia o código pelo canal escolhido (SMS ou WhatsApp)."],
-    ["SendPhoneCode","","POST /auth/phone/code","Visitante","Reenvia o código por SMS ou WhatsApp (válido 10 min; 1 por minuto e 5 por dia)."],
-    ["VerifyPhone","","POST /auth/phone/verify","Visitante","Confere o código (até 5 tentativas), marca o telemóvel como verificado e devolve a sessão."],
-    ["LoginWithPassword","","POST /auth/login","Visitante","Entra com o e-mail ou o telemóvel verificado e a senha. 5 erros bloqueiam 15 min. Com 2FA ligado, devolve um `mfaToken` em vez da sessão."],
-    ["RequestLoginCode","","POST /auth/code","Visitante","Envia um código de login por SMS ou WhatsApp para um telemóvel verificado +244. A resposta é igual com ou sem conta."],
-    ["LoginWithCode","","POST /auth/code/verify","Visitante","Confere o código e devolve a sessão, ou o `mfaToken` com 2FA ligado."],
-    ["RequestLoginLink","","POST /auth/link","Visitante","Envia para um e-mail confirmado um link de uso único, válido 15 min, que abre a app. No máximo 3 por hora."],
-    ["LoginWithLink","","POST /auth/link/verify","Visitante","A app envia o token do link por POST. Abrir o link (GET) não o consome."],
-    ["LoginWithGoogle","","POST /auth/google","Visitante","Valida o idToken com as chaves da Google (público e nonce). Uma conta nova recebe um token de registo de 15 min (`aud: okuteta-signup`)."],
-    ["LoginWithFacebook","","POST /auth/facebook","Visitante","Confere o access token na Graph API (`debug_token`, `/me`) ou valida o JWT do Limited Login no iOS."],
-    ["LoginWithApple","","POST /auth/apple","Visitante","Valida o identityToken com as chaves da Apple e confere o nonce."],
-    ["CompleteSocialSignup","","POST /auth/social/complete","Visitante com token de registo","Pede o telemóvel (obrigatório) e, se quiser, uma senha, e envia o código."],
-    ["StartPasskeyLogin","","POST /auth/passkey/options","Visitante","Cria um desafio de uso único (5 min) para credencial descoberta."],
-    ["FinishPasskeyLogin","","POST /auth/passkey/verify","Visitante","Confere a assinatura, a origem, a verificação do utilizador e o contador. Devolve a sessão sem segundo fator."],
-    ["SendMfaCode","","POST /auth/mfa/code","Visitante com mfaToken","Envia o código do segundo fator por SMS, WhatsApp ou e-mail, num canal diferente do primeiro."],
-    ["VerifyMfa","","POST /auth/mfa/verify","Visitante com mfaToken","Aceita um código TOTP, SMS, WhatsApp, de e-mail ou de recuperação, ou uma passkey, e devolve a sessão com `amr` e `auth_time`."],
-    ["StepUp","","POST /auth/step-up","Utilizador","Confirma de novo com a senha, uma passkey, a app ou um código, e devolve um JWT com `auth_time` de agora, válido 5 min para ações sensíveis."],
-    ["RefreshSession","","POST /auth/refresh","Utilizador","Roda o refresh token sem pedir o segundo fator. O reuso de um token antigo revoga a família inteira."],
-    ["Logout","","POST /auth/logout","Utilizador","Revoga a sessão do aparelho."],
-    ["ListSessions","","GET /me/sessions","Utilizador","Lista os aparelhos com sessão, os métodos usados e o último uso."],
-    ["RevokeSession","","DELETE /me/sessions/{id}","Utilizador","Termina a sessão de outro aparelho."],
-    ["RequestPasswordReset","","POST /auth/password/code","Visitante","Envia um código por SMS, WhatsApp ou e-mail. A resposta é igual com ou sem conta."],
-    ["ResetPassword","","POST /auth/password/reset","Visitante","Troca a senha e encerra todas as sessões. Com 2FA ligado, pede também o segundo fator."],
-    ["StartTotpEnrollment","","POST /me/mfa/totp","Utilizador, com confirmação","Gera o segredo e devolve o `otpauth://` para o QR code."],
-    ["ConfirmTotpEnrollment","","POST /me/mfa/totp/confirm","Utilizador","Confere o primeiro código, liga o 2FA e devolve 10 códigos de recuperação, mostrados uma única vez."],
-    ["RegenerateRecoveryCodes","","POST /me/mfa/recovery-codes","Utilizador, com confirmação","Invalida os códigos antigos e gera 10 novos."],
-    ["DisableMfa","","DELETE /me/mfa","Utilizador, com confirmação","Desliga o 2FA e apaga o TOTP e os códigos de recuperação."],
-    ["StartPasskeyRegistration","","POST /me/passkeys/options","Utilizador, com confirmação","Cria o desafio de registo, excluindo as credenciais que a pessoa já tem."],
-    ["FinishPasskeyRegistration","","POST /me/passkeys","Utilizador","Confere a atestação e guarda a passkey com o nome escolhido."],
-    ["ListPasskeys","","GET /me/passkeys","Utilizador","Mostra o nome, a data de criação e o último uso de cada passkey."],
-    ["RenamePasskey","","PATCH /me/passkeys/{id}","Utilizador","Muda o nome da passkey."],
-    ["DeletePasskey","","DELETE /me/passkeys/{id}","Utilizador, com confirmação","Apaga a passkey, mas nunca a última forma de entrar."],
-    ["LinkSocialIdentity","","POST /me/identities/{provider}","Utilizador, com confirmação","Liga uma conta Google, Facebook ou Apple, que não pode estar ligada a outra pessoa."],
-    ["UnlinkSocialIdentity","","DELETE /me/identities/{provider}","Utilizador, com confirmação","Desliga a conta social, mas nunca a última forma de entrar."],
-    ["GetMyProfile","","GET /me","Utilizador","Devolve a conta, as formas de entrar, o estado do 2FA, as barbearias onde é dono ou barbeiro e os convites pendentes."],
-    ["UpdateProfile","","PATCH /me","Utilizador","Altera o nome. Trocar o telemóvel ou o e-mail pede confirmação e um código novo."],
-    ["SetAvatar","","PUT /me/avatar","Utilizador","Recebe a key do upload e confere que é JPG ou PNG até 5 MB."],
-    ["VerifyEmail","","POST /me/email/verify","Utilizador","Confirma o e-mail com um código."],
-    ["ChangePassword","","PUT /me/password","Utilizador, com confirmação","Define ou troca a senha."],
-    ["DeleteAccount","","DELETE /me","Utilizador, com confirmação","Anonimiza a conta e publica `UserAccountDeleted`. Um dono com barbearia ativa tem de a fechar primeiro."],
-    ["GetAccountStatus","público","—","booking, shop","Devolve o estado da conta e se o telemóvel está verificado, para marcar e para criar barbearia."],
-    ["FindUserByPhone","público","—","shop","Devolve a conta com esse telemóvel verificado, se existir, para avisar quem é convidado."],
-    ["PurgeExpiredChallenges","job","diário","Sistema","Apaga os códigos e os desafios WebAuthn expirados há mais de 1 dia."],
-  ],
-  shop: [
-    ["CreateShop","","POST /shops","Utilizador verificado","Cria a barbearia em DRAFT e o dono como membro OWNER."],
-    ["UpdateShop","","PATCH /shops/{id}","Dono","Altera nome, morada, coordenadas, modo de confirmação, prazo de cancelamento, fuso, intervalo dos slots, antecedência e regra de faltas. Mudar o fuso ou o intervalo publica `ShopScheduleChanged`."],
-    ["SetShopCover","","PUT /shops/{id}/cover","Dono","Recebe a key do upload da foto de capa."],
-    ["SetOpeningHours","","PUT /shops/{id}/opening-hours","Dono","Define o horário semanal, com turnos (por exemplo 08:00–12:30 e 14:00–19:00)."],
-    ["SubmitShopForReview","","POST /shops/{id}/submit","Dono","Exige morada, horário, um serviço e um barbeiro que atende; a barbearia passa a PENDING_REVIEW."],
-    ["ListPendingShops","","GET /admin/shops?status=PENDING_REVIEW","Administrador","Lista a fila de aprovação, das mais antigas para as mais recentes."],
-    ["ApproveShop","","POST /admin/shops/{id}/approve","Administrador","Passa a APPROVED e entra na busca. Publica `ShopApproved`."],
-    ["RejectShop","","POST /admin/shops/{id}/reject","Administrador","Passa a REJECTED com motivo. O dono corrige e volta a submeter."],
-    ["SuspendShop","","POST /admin/shops/{id}/suspend","Administrador","Sai da busca. `ShopSuspended` cancela as marcações futuras."],
-    ["SearchShops","","GET /shops?lat=&lng=&raio=&q=","Visitante","Faz a query PostGIS: barbearias aprovadas dentro do raio, ordenadas pela distância, com a nota e o preço mínimo."],
-    ["GetShop","","GET /shops/{id}","Visitante","Mostra o perfil público: horário, serviços, barbeiros, nota, contas de pagamento e regra de cancelamento."],
-    ["CreateService","","POST /shops/{id}/services","Dono","Cria um serviço com nome, duração (múltiplo de 5 min) e preço em kwanzas."],
-    ["UpdateService","","PATCH /shops/{id}/services/{serviceId}","Dono","O novo preço e a nova duração valem só para marcações novas."],
-    ["DeactivateService","","DELETE /shops/{id}/services/{serviceId}","Dono","Esconde o serviço. As marcações existentes mantêm-se."],
-    ["InviteBarber","","POST /shops/{id}/invites","Dono","Convida pelo telemóvel, por 7 dias. Quem já tem conta recebe um aviso."],
-    ["RevokeInvite","","DELETE /shops/{id}/invites/{inviteId}","Dono","Cancela um convite pendente."],
-    ["ListMyInvites","","GET /me/invites","Utilizador","Lista os convites para o telemóvel verificado da conta."],
-    ["AcceptInvite","","POST /invites/{id}/accept","Convidado","Torna-se membro BARBER (ou reativa a linha de quem já esteve). O telemóvel verificado da conta tem de ser o do convite."],
-    ["DeclineInvite","","POST /invites/{id}/decline","Convidado","Recusa o convite."],
-    ["UpdateMember","","PATCH /shops/{id}/members/{memberId}","Dono ou o próprio","Altera o nome de apresentação, a bio e se atende marcações."],
-    ["SetMemberServices","","PUT /shops/{id}/members/{memberId}/services","Dono","Define os serviços que este barbeiro faz."],
-    ["RemoveMember","","DELETE /shops/{id}/members/{memberId}","Dono, ou o próprio para sair","Passa a REMOVED. `MemberRemoved` cancela as marcações futuras e apaga os slots. O dono não sai."],
-    ["GetShopBookingRules","público","—","booking, schedule","Devolve o estado, o modo de confirmação, o prazo de cancelamento, o intervalo, o fuso, a antecedência, a regra de faltas e o horário da barbearia."],
-    ["QuoteServices","público","—","booking, schedule","Devolve o preço e a duração dos serviços pedidos e os barbeiros ativos que fazem todos."],
-    ["GetShopRole","público","—","booking, schedule, payment, messaging","Devolve o papel de uma pessoa na barbearia (OWNER, BARBER ou nenhum), para autorizar os pedidos."],
-    ["ExpireInvites","job","diário","Sistema","Convites PENDING com mais de 7 dias passam a EXPIRED."],
-    ["OnUserAccountDeleted","evento","UserAccountDeleted","Sistema","Remove a pessoa das barbearias onde é barbeiro."],
-  ],
-  schedule: [
-    ["SetWorkingHours","","PUT /members/{id}/working-hours","Barbeiro ou dono","Define o horário semanal (dentro do da barbearia) e regenera os slots livres. Responde 409 se uma marcação ficar fora do novo horário."],
-    ["AddTimeOff","","POST /members/{id}/time-off","Barbeiro ou dono","Marca folga, férias ou pausa e apaga os slots livres do período. Responde 409 se houver marcações no período."],
-    ["RemoveTimeOff","","DELETE /members/{id}/time-off/{timeOffId}","Barbeiro ou dono","Volta a gerar os slots do período."],
-    ["ListTimeOff","","GET /members/{id}/time-off?de=&ate=","Barbeiro ou dono","Lista as folgas no período."],
-    ["GetAvailability","","GET /shops/{id}/availability?data=&servicos=&barbeiro=","Visitante","Lê os slots livres do dia e devolve os inícios com slots seguidos suficientes para a soma das durações, respeitando a antecedência mínima. Sem barbeiro, mostra a união dos que fazem os serviços."],
-    ["ReserveSlots","público","—","booking","Ocupa os slots do intervalo com `UPDATE … WHERE booking_id IS NULL` e confere o número de linhas. Se faltar alguma, a marcação falha com 409."],
-    ["GenerateSlots","job","diário","Sistema","Gera, para cada barbeiro e no fuso da barbearia, os slots de todos os dias da janela (`max_advance_days`) que ainda não os têm. Uma corrida perdida corrige-se na seguinte."],
-    ["PurgePastSlots","job","diário","Sistema","Apaga os slots com mais de 7 dias."],
-    ["OnBookingEnded","evento","BookingCancelled, BookingRejected, BookingExpired","Sistema","Liberta os slots (`booking_id = NULL`)."],
-    ["OnShopScheduleChanged","evento","ShopScheduleChanged","Sistema","Regenera os slots livres de todos os barbeiros da barbearia com o novo intervalo ou fuso, sem tocar nos ocupados."],
-    ["OnMemberRemoved","evento","MemberRemoved","Sistema","Apaga os slots futuros do barbeiro."],
-  ],
-  booking: [
-    ["CreateBooking","","POST /shops/{id}/bookings","Cliente verificado","Recebe os serviços, o início, o barbeiro (ou nenhum) e o método de pagamento. Trava os candidatos por ordem de id, sorteia um com os slots livres, chama `ReserveSlots` e cria CONFIRMED (INSTANT) ou PENDING (MANUAL). Aceita `Idempotency-Key`. Recusa se o cliente atingiu o limite de faltas dessa barbearia."],
-    ["GetBooking","","GET /bookings/{id}","Cliente, barbeiro ou dono","Mostra o detalhe com os serviços e preços copiados. Para a barbearia, inclui a nota do cliente."],
-    ["ListMyBookings","","GET /me/bookings?estado=","Cliente","Lista as próximas e as passadas."],
-    ["ListShopAgenda","","GET /shops/{id}/agenda?data=&barbeiro=","Dono ou barbeiro","Mostra a agenda do dia: o barbeiro vê só a sua, o dono vê todas."],
-    ["ApproveBooking","","POST /bookings/{id}/approve","Dono ou barbeiro atribuído","Passa de PENDING a CONFIRMED."],
-    ["RejectBooking","","POST /bookings/{id}/reject","Dono ou barbeiro atribuído","Passa de PENDING a REJECTED, com motivo, e liberta os slots."],
-    ["CancelBookingByCustomer","","POST /bookings/{id}/cancel","Cliente","Cancela até `cancel_notice_hours` antes do início. Depois disso responde 409 e só a barbearia cancela."],
-    ["CancelBookingByShop","","POST /shops/{id}/bookings/{bookingId}/cancel","Dono ou barbeiro atribuído","Cancela a qualquer momento antes do início, com motivo obrigatório."],
-    ["CompleteBooking","","POST /bookings/{id}/complete","Dono ou barbeiro atribuído","A partir da hora de início, passa a COMPLETED e publica `BookingCompleted`."],
-    ["MarkNoShow","","POST /bookings/{id}/no-show","Dono ou barbeiro atribuído","15 min depois do início, passa a NO_SHOW e conta para o limite de faltas dessa barbearia."],
-    ["ExpirePendingBookings","job","a cada minuto","Sistema","Marcações PENDING sem resposta até `pending_expires_at` passam a EXPIRED."],
-    ["AutoCompleteBookings","job","de hora em hora","Sistema","Marcações CONFIRMED que acabaram há mais de 12 h passam a COMPLETED."],
-    ["GetBookingParticipants","público","—","review, payment","Devolve o cliente, o barbeiro, a barbearia, o estado e a data de conclusão."],
-    ["HasBookingWithShop","público","—","messaging","Diz se o cliente tem ou teve uma marcação nessa barbearia."],
-    ["OnMemberRemoved","evento","MemberRemoved","Sistema","Cancela (SYSTEM) as marcações futuras do barbeiro."],
-    ["OnShopSuspended","evento","ShopSuspended","Sistema","Cancela as marcações futuras da barbearia."],
-    ["OnUserAccountDeleted","evento","UserAccountDeleted","Sistema","Cancela as marcações futuras do cliente."],
-  ],
-  review: [
-    ["ReviewShop","","POST /bookings/{id}/review","Cliente","Até 14 dias depois de COMPLETED, avalia a barbearia e o barbeiro de 1 a 5, com comentário. Fica escondida até a barbearia avaliar ou o prazo acabar."],
-    ["ReviewCustomer","","POST /bookings/{id}/customer-review","Barbeiro atribuído ou dono","Avalia o cliente de 1 a 5, com comentário. Quando os dois lados avaliaram, publica as duas avaliações."],
-    ["PublishExpiredReviews","job","de hora em hora","Sistema","Publica as avaliações cujo prazo de 14 dias acabou, mesmo sem a do outro lado."],
-    ["ReplyToReview","","POST /reviews/{id}/reply","Dono","Dá uma resposta pública a uma avaliação publicada da barbearia."],
-    ["ListShopReviews","","GET /shops/{id}/reviews","Visitante","Lista as publicadas, das mais recentes para as mais antigas."],
-    ["ListMemberReviews","","GET /members/{id}/reviews","Visitante","Lista as avaliações do barbeiro."],
-    ["GetCustomerRating","público","—","booking","Devolve a nota e o número de avaliações do cliente."],
-    ["HideReview","","POST /admin/reviews/{id}/hide","Administrador","Esconde uma avaliação ofensiva ou falsa, com motivo."],
-    ["RecalculateRating","evento","ReviewPublished, ReviewHidden","Sistema","Recalcula `rating_stats` da barbearia, do barbeiro ou do cliente a partir das publicadas."],
-    ["OnUserAccountDeleted","evento","UserAccountDeleted","Sistema","O nome do autor passa a \"Utilizador removido\"."],
-  ],
-  notification: [
-    ["RegisterDevice","","POST /me/devices","Utilizador","Regista o token FCM do aparelho."],
-    ["UnregisterDevice","","DELETE /me/devices/{token}","Utilizador","Apaga o token quando a pessoa sai da conta."],
-    ["ListNotifications","","GET /me/notifications","Utilizador","Mostra a caixa da app, paginada."],
-    ["MarkNotificationRead","","POST /me/notifications/{id}/read","Utilizador","Marca um aviso como lido."],
-    ["MarkAllRead","","POST /me/notifications/read-all","Utilizador","Marca todos os avisos como lidos."],
-    ["NotificationEventListener","evento","vários","Sistema","Grava o aviso na transação do evento: marcação pedida, confirmada, recusada, cancelada (com convite para pedir o reembolso, se foi paga), expirada ou concluída (convite para avaliar), avaliações publicadas, convite de barbeiro, barbearia aprovada ou recusada, pagamento declarado, reembolso pedido ou enviado, mensagem nova e avisos de segurança (login num aparelho novo, 2FA ligado ou desligado, código de recuperação usado), estes também por e-mail."],
-    ["DeliverPush","job","a cada 5 s","Sistema","Envia por FCM com `FOR UPDATE SKIP LOCKED`, até 5 tentativas. Um token inválido é apagado."],
-    ["SendReminders","job","a cada 5 min","Sistema","Envia lembretes 24 h e 1 h antes da marcação; a `dedupe_key` impede repetições."],
-    ["PurgeOldNotifications","job","diário","Sistema","Apaga os avisos com mais de 6 meses."],
-  ],
-  payment: [
-    ["SetShopPaymentAccounts","","PUT /shops/{id}/payment-accounts","Dono","Define os números de Multicaixa Express, Unitel Money e Afrimoney ou o IBAN da barbearia."],
-    ["OnBookingCreated","evento","BookingCreated","Sistema","Cria o pagamento PENDING com o valor da marcação e o método escolhido."],
-    ["GetBookingPayment","","GET /bookings/{id}/payment","Cliente ou barbearia","Mostra o valor, o estado, o reembolso e para onde pagar (`payTo`)."],
-    ["ChangePaymentMethod","","PUT /bookings/{id}/payment/method","Cliente","Troca o método enquanto o pagamento está PENDING."],
-    ["DeclarePayment","","POST /bookings/{id}/payment/declare","Cliente","Avisa que transferiu, com a key do comprovativo (JPG, PNG ou PDF), e passa a DECLARED."],
-    ["ConfirmPaymentReceived","","POST /bookings/{id}/payment/received","Dono ou barbeiro atribuído","Passa a RECEIVED. Em espécie, é o único passo."],
-    ["DisputePayment","","POST /bookings/{id}/payment/not-received","Dono","Passa de DECLARED a DISPUTED, e o administrador vê o comprovativo."],
-    ["ResolvePaymentDispute","","POST /admin/payments/{id}/resolve","Administrador","Decide RECEIVED ou volta a PENDING."],
-    ["OnBookingCancelled","evento","BookingCancelled, BookingRejected, BookingExpired","Sistema","Um pagamento PENDING passa a CANCELLED. Se já foi declarado ou recebido, fica à espera de um pedido de reembolso."],
-    ["RequestRefund","","POST /bookings/{id}/payment/refund","Cliente","Para uma marcação cancelada, recusada ou expirada com pagamento DECLARED ou RECEIVED. Trava o pagamento (`FOR UPDATE`): só há um pedido, do valor pago."],
-    ["SendRefund","","POST /refunds/{id}/sent","Dono","Marca como devolvido, com a key do comprovativo: SENT."],
-    ["ConfirmRefund","","POST /refunds/{id}/confirm","Cliente","Confirma que recebeu: CONFIRMED, e o pagamento passa a REFUNDED."],
-    ["DisputeRefund","","POST /refunds/{id}/dispute","Cliente","Diz que não recebeu: DISPUTED, e o administrador vê o comprovativo."],
-    ["ResolveRefundDispute","","POST /admin/refunds/{id}/resolve","Administrador","Decide CONFIRMED ou volta a REQUESTED, com nota."],
-    ["AutoConfirmRefunds","job","diário","Sistema","Reembolsos SENT sem resposta do cliente em 7 dias passam a CONFIRMED."],
-    ["GetShopRevenue","","GET /shops/{id}/revenue?de=&ate=","Dono","Mostra o total recebido menos os reembolsos, por método e por barbeiro."],
-  ],
-  messaging: [
-    ["OpenConversation","","POST /shops/{id}/conversations","Cliente","Só quem tem uma marcação nessa barbearia. Há uma conversa por cliente e barbearia."],
-    ["ListConversations","","GET /me/conversations · GET /shops/{id}/conversations","Cliente · dono e barbeiros","Mostra a última mensagem e as não lidas."],
-    ["ListMessages","","GET /conversations/{id}/messages?antes=","Participantes","Lista as mensagens, paginadas pela data."],
-    ["SendMessage","","POST /conversations/{id}/messages","Participantes","Envia até 2000 caracteres, com telefones (libphonenumber, região AO) e e-mails trocados por •••. O `clientMessageId` evita duplicados, e o outro lado recebe push."],
-    ["MarkConversationRead","","POST /conversations/{id}/read","Participantes","Atualiza a marca de leitura do lado de quem lê, que nunca recua."],
-    ["PurgeOldMessages","job","diário","Sistema","Apaga as mensagens com mais de 2 anos."],
-  ],
-  shared: [
-    ["CreateUploadUrl","","POST /uploads","Utilizador","Recebe o propósito (avatar, capa ou comprovativo), o tipo e o tamanho, e devolve uma URL PUT pré-assinada de 5 min e a key `users/{id}/…`."],
-    ["OutboxRelay","job","a cada 5 s","Sistema","Entrega os eventos que saem da aplicação (e-mails), com até 5 tentativas e um alerta no log quando falham."],
-  ],
-};
-
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const fmt = s => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
 const color = id => `var(--m-${id})`;
@@ -1647,38 +1345,6 @@ ucKinds.addEventListener("click", e => {
 filterUseCases();
 
 // Dependências entre módulos: chamadas a casos de uso públicos e eventos
-const CALLS = [
-  ["booking", "shop", "QuoteServices", "preço, duração e quem faz os serviços"],
-  ["booking", "shop", "GetShopBookingRules", "modo de confirmação, prazos e faltas"],
-  ["booking", "shop", "GetShopRole", "quem aprova, cancela e vê a agenda"],
-  ["booking", "schedule", "ReserveSlots", "ocupar os slots da marcação"],
-  ["booking", "review", "GetCustomerRating", "nota do cliente para a barbearia"],
-  ["booking", "user", "GetAccountStatus", "telemóvel verificado para marcar"],
-  ["schedule", "shop", "GetShopBookingRules", "horário, intervalo, fuso e antecedência"],
-  ["schedule", "shop", "QuoteServices", "quem faz os serviços pedidos"],
-  ["schedule", "shop", "GetShopRole", "quem pode mudar a agenda de um barbeiro"],
-  ["shop", "user", "GetAccountStatus", "telemóvel verificado para criar barbearia"],
-  ["shop", "user", "FindUserByPhone", "avisar quem já tem conta quando é convidado"],
-  ["review", "booking", "GetBookingParticipants", "quem pode avaliar e até quando"],
-  ["payment", "booking", "GetBookingParticipants", "quem declara, confirma e pede reembolso"],
-  ["payment", "shop", "GetShopRole", "dono e barbeiros da barbearia"],
-  ["messaging", "booking", "HasBookingWithShop", "só quem tem marcação abre conversa"],
-  ["messaging", "shop", "GetShopRole", "quem responde pela barbearia"],
-];
-const EVENTS = [
-  ["UserAccountDeleted", "user", ["shop", "booking", "review"]],
-  ["LoginFromNewDevice, MfaChanged, RecoveryCodeUsed", "user", ["notification"]],
-  ["ShopApproved, ShopRejected, InviteCreated", "shop", ["notification"]],
-  ["ShopSuspended", "shop", ["booking", "notification"]],
-  ["ShopScheduleChanged", "shop", ["schedule"]],
-  ["MemberRemoved", "shop", ["booking", "schedule"]],
-  ["BookingCreated", "booking", ["payment", "notification"]],
-  ["BookingConfirmed, BookingCompleted, BookingNoShow", "booking", ["notification"]],
-  ["BookingRejected, BookingCancelled, BookingExpired", "booking", ["schedule", "payment", "notification"]],
-  ["ReviewPublished, ReviewHidden", "review", ["notification"]],
-  ["PaymentDeclared, RefundRequested, RefundSent", "payment", ["notification"]],
-  ["MessageSent", "messaging", ["notification"]],
-];
 const modTag = id => `<span style="--c:${color(id)}; white-space:nowrap"><i class="sq"></i> <code>${id}</code></span>`;
 document.getElementById("dep-calls").innerHTML = CALLS.map(([f, t, uc, why]) => `<tr><td>${modTag(f)}</td><td class="uc">${t}.${uc}</td><td class="fx">${esc(why)}</td></tr>`).join("");
 document.getElementById("dep-events").innerHTML = EVENTS.map(([ev, pub, subs]) => `<tr><td class="uc" style="white-space:normal">${esc(ev)}</td><td>${modTag(pub)}</td><td>${subs.map(modTag).join(" ")}</td></tr>`).join("");

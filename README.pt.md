@@ -11,7 +11,7 @@ nomes em inglês (`shop`, `booking`, `member`); os textos que o utilizador vê u
 > **Estado:** design aprovado, **ainda sem código**. Tudo o que este README descreve é o que vai ser construído,
 > passo a passo (ver [Próximos passos](#próximos-passos)). O próximo é o passo 0: o esqueleto do projeto.
 >
-> O system design completo (decisões, modelo de dados com colunas e índices, 141 casos de uso, arquitetura, capacidade
+> O system design completo (decisões, modelo de dados com colunas e índices, 145 casos de uso, arquitetura, capacidade
 > e operação) está em [docs/design.html](docs/design.html), com um resumo em
 > [Modelo de dados e system design](#modelo-de-dados-e-system-design). O projeto segue a mesma linha do Bazza: monólito
 > modular, Clean Architecture e cada fornecedor atrás de uma porta.
@@ -20,8 +20,8 @@ nomes em inglês (`shop`, `booking`, `member`); os textos que o utilizador vê u
 
 ### Previstas para o MVP
 
-- **Conta:** registo com telemóvel obrigatório (`+244`, móvel), senha opcional, renovação de sessão, lista e fim das
-  sessões noutros aparelhos, e exclusão com anonimização
+- **Conta:** registo com telemóvel obrigatório (`+244`, móvel), senha opcional, aceitação dos termos (com a versão),
+  renovação de sessão, lista e fim das sessões noutros aparelhos, e exclusão com anonimização
 - **Login:** nove formas de entrar: e-mail ou telemóvel com senha, código por SMS, código por WhatsApp, link por
   e-mail, Google, Facebook, Apple e passkeys
 - **2FA e MFA (opcional para todos):** app autenticadora (TOTP), passkey, código por SMS, WhatsApp ou e-mail, e 10
@@ -55,8 +55,9 @@ nomes em inglês (`shop`, `booking`, `member`); os textos que o utilizador vê u
 - **Reembolsos a pedido:** numa marcação paga e depois cancelada, o cliente pede a devolução. A barbearia devolve com
   comprovativo, e o cliente confirma ou contesta. O administrador decide as disputas
 - **Mensagens:** conversa entre o cliente e a barbearia (dono e barbeiros), com telefones e e-mails escondidos (`•••`)
-- **Administração:** fila de aprovação de barbearias, suspensão, avaliações escondidas e disputas de pagamento e de
-  reembolso
+- **Administração:** fila de aprovação de barbearias, suspensão e reabertura, avaliações escondidas, disputas de
+  pagamento e de reembolso, e desligar o 2FA de quem o perdeu (com 24 h de espera). Os primeiros administradores vêm
+  de `ADMIN_PHONES`
 
 ### Depois do MVP
 
@@ -181,6 +182,8 @@ dele, as **obrigatórias** precisam de estar definidas, ou a aplicação recusa 
 |---|---|---|
 | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | sim | PostgreSQL |
 | `JWT_SECRET` | sim | Assinatura dos tokens (acesso, registo social, 2FA) |
+| `ADMIN_PHONES` | não | Telemóveis verificados cujas contas passam a ADMIN no arranque (separados por vírgulas) |
+| `TERMS_VERSION` | sim | Versão atual dos termos; quem aceitou uma anterior tem de aceitar de novo |
 | `CRYPTO_KEY` | sim | Chave AES-256-GCM dos segredos TOTP |
 | `PUBLIC_BASE_URL` | sim | Domínio dos links por e-mail (ex.: `https://okuteta.ao`) |
 | `EMAIL_SENDER` | não | `smtp` (Brevo) ou `log` |
@@ -241,17 +244,30 @@ O telefone é **obrigatório** e conferido no plano de numeração com a libphon
 fixo, é recusado (**422**). O login com telemóvel só funciona depois de o verificar. Antes disso, a API responde como
 se o número não existisse.
 
+### Convenções
+
+| Tema | Regra | Exemplo |
+|---|---|---|
+| Nomes | Caminhos, parâmetros de query e campos do JSON em inglês; JSON em camelCase. Os textos para a pessoa (erros, avisos) em português | `GET /shops/{id}/availability?date=2026-11-07&serviceIds=…` |
+| Paginação | Por cursor nas listas que crescem: `?limit=` (20 por omissão, máximo 100) e `?cursor=`. A resposta traz `nextCursor`, nulo na última página. Do mais recente para o mais antigo por omissão | `{ "items": [ … ], "nextCursor": "MjAy…" }` |
+| Instantes | ISO 8601 em UTC nas respostas; nos pedidos aceita-se o deslocamento | `"startsAt": "2026-11-07T10:30:00Z"` |
+| Dias e horas da agenda | Locais, no fuso da barbearia, que vem na resposta | `"date": "2026-11-07", "start": "11:30", "timezone": "Africa/Luanda"` |
+| Dinheiro | Inteiros em cêntimos, com a moeda | `"totalCents": 450000, "currency": "AOA"` |
+| Repetir um pedido | Criar marcação aceita `Idempotency-Key`. As operações de pagamento e reembolso são seguras por estado: repetidas, devolvem o estado atual em vez de erro. As mensagens usam `clientMessageId` | `Idempotency-Key: 6f1c2a9e-…` |
+| Versões | Tudo sob `/api/v1`. Campos novos não mudam a versão; uma mudança que parte a app vai para `/api/v2`, com as duas no ar durante 6 meses | `/api/v1/…` |
+
 ### Endpoints
 
 Todos previstos. A lista completa, com os campos de cada pedido e resposta, vai estar no Swagger. `job` são tarefas
 agendadas (com ShedLock), `evento` reage a eventos de outros módulos e `público` é chamado por outro módulo, sem
 endpoint.
 
+<!-- generated:usecases -->
 **Utilizadores** (`user`)
 
 | Caso de uso | Tipo | Endpoint | Quem | O que faz |
 |---|---|---|---|---|
-| `RegisterUser` | endpoint | `POST /api/v1/auth/register` | Visitante | Cria a conta com nome, telemóvel (+244, móvel, conferido com libphonenumber), e-mail opcional e senha opcional (Argon2id), e envia o código pelo canal escolhido (SMS ou WhatsApp). |
+| `RegisterUser` | endpoint | `POST /api/v1/auth/register` | Visitante | Cria a conta com nome, telemóvel (+244, móvel, conferido com libphonenumber), e-mail opcional e senha opcional (Argon2id), aceita a versão atual dos termos, e envia o código pelo canal escolhido (SMS ou WhatsApp). |
 | `SendPhoneCode` | endpoint | `POST /api/v1/auth/phone/code` | Visitante | Reenvia o código por SMS ou WhatsApp (válido 10 min; 1 por minuto e 5 por dia). |
 | `VerifyPhone` | endpoint | `POST /api/v1/auth/phone/verify` | Visitante | Confere o código (até 5 tentativas), marca o telemóvel como verificado e devolve a sessão. |
 | `LoginWithPassword` | endpoint | `POST /api/v1/auth/login` | Visitante | Entra com o e-mail ou o telemóvel verificado e a senha. 5 erros bloqueiam 15 min. Com 2FA ligado, devolve um `mfaToken` em vez da sessão. |
@@ -267,7 +283,7 @@ endpoint.
 | `FinishPasskeyLogin` | endpoint | `POST /api/v1/auth/passkey/verify` | Visitante | Confere a assinatura, a origem, a verificação do utilizador e o contador. Devolve a sessão sem segundo fator. |
 | `SendMfaCode` | endpoint | `POST /api/v1/auth/mfa/code` | Visitante com mfaToken | Envia o código do segundo fator por SMS, WhatsApp ou e-mail, num canal diferente do primeiro. |
 | `VerifyMfa` | endpoint | `POST /api/v1/auth/mfa/verify` | Visitante com mfaToken | Aceita um código TOTP, SMS, WhatsApp, de e-mail ou de recuperação, ou uma passkey, e devolve a sessão com `amr` e `auth_time`. |
-| `StepUp` | endpoint | `POST /api/v1/auth/step-up` | Utilizador | Confirma de novo com a senha, uma passkey, a app ou um código, e devolve um JWT com `auth_time` de agora, válido 5 min para ações sensíveis. |
+| `StepUp` | endpoint | `POST /api/v1/auth/step-up` | Utilizador | Confirma de novo com a senha, uma passkey, a app ou um código, e devolve um JWT com `auth_time` de agora, válido 5 min para ações sensíveis. Recusado nas 24 h a seguir a um `ResetMfaByAdmin`. |
 | `RefreshSession` | endpoint | `POST /api/v1/auth/refresh` | Utilizador | Roda o refresh token sem pedir o segundo fator. O reuso de um token antigo revoga a família inteira. |
 | `Logout` | endpoint | `POST /api/v1/auth/logout` | Utilizador | Revoga a sessão do aparelho. |
 | `ListSessions` | endpoint | `GET /api/v1/me/sessions` | Utilizador | Lista os aparelhos com sessão, os métodos usados e o último uso. |
@@ -293,6 +309,9 @@ endpoint.
 | `DeleteAccount` | endpoint | `DELETE /api/v1/me` | Utilizador, com confirmação | Anonimiza a conta e publica `UserAccountDeleted`. Um dono com barbearia ativa tem de a fechar primeiro. |
 | `GetAccountStatus` | público | — | booking, shop | Devolve o estado da conta e se o telemóvel está verificado, para marcar e para criar barbearia. |
 | `FindUserByPhone` | público | — | shop | Devolve a conta com esse telemóvel verificado, se existir, para avisar quem é convidado. |
+| `AcceptTerms` | endpoint | `POST /api/v1/me/terms` | Utilizador | Aceita a versão atual dos termos (`TERMS_VERSION`). Enquanto não aceitar, a API responde 403 `TERMS_REQUIRED` a tudo menos `/auth/*` e `/me/terms`. |
+| `ResetMfaByAdmin` | endpoint | `POST /api/v1/admin/users/{id}/mfa/reset` | Administrador | Desliga o 2FA de quem perdeu a app e os códigos, depois de confirmar a identidade fora da app (por exemplo, videochamada com o BI). Grava quem o fez; a conta fica 24 h sem ações sensíveis e recebe avisos por SMS e e-mail. |
+| `PromoteAdmins` | job | no arranque | Sistema | As contas cujo telemóvel verificado está em `ADMIN_PHONES` passam a ADMIN; quem saiu da lista volta a USER. |
 | `PurgeExpiredChallenges` | job | diário | Sistema | Apaga os códigos e os desafios WebAuthn expirados há mais de 1 dia. |
 
 **Barbearias** (`shop`)
@@ -308,7 +327,8 @@ endpoint.
 | `ApproveShop` | endpoint | `POST /api/v1/admin/shops/{id}/approve` | Administrador | Passa a APPROVED e entra na busca. Publica `ShopApproved`. |
 | `RejectShop` | endpoint | `POST /api/v1/admin/shops/{id}/reject` | Administrador | Passa a REJECTED com motivo. O dono corrige e volta a submeter. |
 | `SuspendShop` | endpoint | `POST /api/v1/admin/shops/{id}/suspend` | Administrador | Sai da busca. `ShopSuspended` cancela as marcações futuras. |
-| `SearchShops` | endpoint | `GET /api/v1/shops?lat=&lng=&raio=&q=` | Visitante | Faz a query PostGIS: barbearias aprovadas dentro do raio, ordenadas pela distância, com a nota e o preço mínimo. |
+| `ReinstateShop` | endpoint | `POST /api/v1/admin/shops/{id}/reinstate` | Administrador | SUSPENDED → APPROVED, com motivo: volta à busca e aceita marcações. As marcações canceladas não voltam. Publica `ShopReinstated`. |
+| `SearchShops` | endpoint | `GET /api/v1/shops?lat=&lng=&radius=&q=` | Visitante | Faz a query PostGIS: barbearias aprovadas dentro do raio, ordenadas pela distância, com a nota e o preço mínimo. |
 | `GetShop` | endpoint | `GET /api/v1/shops/{id}` | Visitante | Mostra o perfil público: horário, serviços, barbeiros, nota, contas de pagamento e regra de cancelamento. |
 | `CreateService` | endpoint | `POST /api/v1/shops/{id}/services` | Dono | Cria um serviço com nome, duração (múltiplo de 5 min) e preço em kwanzas. |
 | `UpdateService` | endpoint | `PATCH /api/v1/shops/{id}/services/{serviceId}` | Dono | O novo preço e a nova duração valem só para marcações novas. |
@@ -334,8 +354,8 @@ endpoint.
 | `SetWorkingHours` | endpoint | `PUT /api/v1/members/{id}/working-hours` | Barbeiro ou dono | Define o horário semanal (dentro do da barbearia) e regenera os slots livres. Responde 409 se uma marcação ficar fora do novo horário. |
 | `AddTimeOff` | endpoint | `POST /api/v1/members/{id}/time-off` | Barbeiro ou dono | Marca folga, férias ou pausa e apaga os slots livres do período. Responde 409 se houver marcações no período. |
 | `RemoveTimeOff` | endpoint | `DELETE /api/v1/members/{id}/time-off/{timeOffId}` | Barbeiro ou dono | Volta a gerar os slots do período. |
-| `ListTimeOff` | endpoint | `GET /api/v1/members/{id}/time-off?de=&ate=` | Barbeiro ou dono | Lista as folgas no período. |
-| `GetAvailability` | endpoint | `GET /api/v1/shops/{id}/availability?data=&servicos=&barbeiro=` | Visitante | Lê os slots livres do dia e devolve os inícios com slots seguidos suficientes para a soma das durações, respeitando a antecedência mínima. Sem barbeiro, mostra a união dos que fazem os serviços. |
+| `ListTimeOff` | endpoint | `GET /api/v1/members/{id}/time-off?from=&to=` | Barbeiro ou dono | Lista as folgas no período. |
+| `GetAvailability` | endpoint | `GET /api/v1/shops/{id}/availability?date=&serviceIds=&memberId=` | Visitante | Lê os slots livres do dia e devolve os inícios com slots seguidos suficientes para a soma das durações, respeitando a antecedência mínima. Sem barbeiro, mostra a união dos que fazem os serviços. |
 | `ReserveSlots` | público | — | booking | Ocupa os slots do intervalo com `UPDATE … WHERE booking_id IS NULL` e confere o número de linhas. Se faltar alguma, a marcação falha com 409. |
 | `GenerateSlots` | job | diário | Sistema | Gera, para cada barbeiro e no fuso da barbearia, os slots de todos os dias da janela (`max_advance_days`) que ainda não os têm. Uma corrida perdida corrige-se na seguinte. |
 | `PurgePastSlots` | job | diário | Sistema | Apaga os slots com mais de 7 dias. |
@@ -349,10 +369,10 @@ endpoint.
 |---|---|---|---|---|
 | `CreateBooking` | endpoint | `POST /api/v1/shops/{id}/bookings` | Cliente verificado | Recebe os serviços, o início, o barbeiro (ou nenhum) e o método de pagamento. Trava os candidatos por ordem de id, sorteia um com os slots livres, chama `ReserveSlots` e cria CONFIRMED (INSTANT) ou PENDING (MANUAL). Aceita `Idempotency-Key`. Recusa se o cliente atingiu o limite de faltas dessa barbearia. |
 | `GetBooking` | endpoint | `GET /api/v1/bookings/{id}` | Cliente, barbeiro ou dono | Mostra o detalhe com os serviços e preços copiados. Para a barbearia, inclui a nota do cliente. |
-| `ListMyBookings` | endpoint | `GET /api/v1/me/bookings?estado=` | Cliente | Lista as próximas e as passadas. |
-| `ListShopAgenda` | endpoint | `GET /api/v1/shops/{id}/agenda?data=&barbeiro=` | Dono ou barbeiro | Mostra a agenda do dia: o barbeiro vê só a sua, o dono vê todas. |
+| `ListMyBookings` | endpoint | `GET /api/v1/me/bookings?status=&cursor=` | Cliente | Lista as próximas e as passadas, paginadas por cursor. |
+| `ListShopAgenda` | endpoint | `GET /api/v1/shops/{id}/agenda?date=&memberId=` | Dono ou barbeiro | Mostra a agenda do dia: o barbeiro vê só a sua, o dono vê todas. |
 | `ApproveBooking` | endpoint | `POST /api/v1/bookings/{id}/approve` | Dono ou barbeiro atribuído | Passa de PENDING a CONFIRMED. |
-| `RejectBooking` | endpoint | `POST /api/v1/bookings/{id}/reject` | Dono ou barbeiro atribuído | Passa de PENDING a REJECTED, com motivo, e liberta os slots. |
+| `RejectBooking` | endpoint | `POST /api/v1/bookings/{id}/reject` | Dono ou barbeiro atribuído | Passa de PENDING a REJECTED, com motivo, e liberta os slots. Também em "qualquer um": não passa a outro barbeiro, e o aviso ao cliente leva um atalho para os outros horários. |
 | `CancelBookingByCustomer` | endpoint | `POST /api/v1/bookings/{id}/cancel` | Cliente | Cancela até `cancel_notice_hours` antes do início. Depois disso responde 409 e só a barbearia cancela. |
 | `CancelBookingByShop` | endpoint | `POST /api/v1/shops/{id}/bookings/{bookingId}/cancel` | Dono ou barbeiro atribuído | Cancela a qualquer momento antes do início, com motivo obrigatório. |
 | `CompleteBooking` | endpoint | `POST /api/v1/bookings/{id}/complete` | Dono ou barbeiro atribuído | A partir da hora de início, passa a COMPLETED e publica `BookingCompleted`. |
@@ -386,10 +406,10 @@ endpoint.
 |---|---|---|---|---|
 | `RegisterDevice` | endpoint | `POST /api/v1/me/devices` | Utilizador | Regista o token FCM do aparelho. |
 | `UnregisterDevice` | endpoint | `DELETE /api/v1/me/devices/{token}` | Utilizador | Apaga o token quando a pessoa sai da conta. |
-| `ListNotifications` | endpoint | `GET /api/v1/me/notifications` | Utilizador | Mostra a caixa da app, paginada. |
+| `ListNotifications` | endpoint | `GET /api/v1/me/notifications` | Utilizador | Mostra a caixa da app, paginada por cursor. |
 | `MarkNotificationRead` | endpoint | `POST /api/v1/me/notifications/{id}/read` | Utilizador | Marca um aviso como lido. |
 | `MarkAllRead` | endpoint | `POST /api/v1/me/notifications/read-all` | Utilizador | Marca todos os avisos como lidos. |
-| `NotificationEventListener` | evento | vários | Sistema | Grava o aviso na transação do evento: marcação pedida, confirmada, recusada, cancelada (com convite para pedir o reembolso, se foi paga), expirada ou concluída (convite para avaliar), avaliações publicadas, convite de barbeiro, barbearia aprovada ou recusada, pagamento declarado, reembolso pedido ou enviado, mensagem nova e avisos de segurança (login num aparelho novo, 2FA ligado ou desligado, código de recuperação usado), estes também por e-mail. |
+| `NotificationEventListener` | evento | vários | Sistema | Grava o aviso na transação do evento: marcação pedida, confirmada, recusada, cancelada (com convite para pedir o reembolso, se foi paga), expirada ou concluída (convite para avaliar), avaliações publicadas, convite de barbeiro, barbearia aprovada, recusada ou reaberta, pagamento declarado, reembolso pedido ou enviado, mensagem nova e avisos de segurança (login num aparelho novo, 2FA ligado ou desligado, código de recuperação usado), estes também por e-mail. |
 | `DeliverPush` | job | a cada 5 s | Sistema | Envia por FCM com `FOR UPDATE SKIP LOCKED`, até 5 tentativas. Um token inválido é apagado. |
 | `SendReminders` | job | a cada 5 min | Sistema | Envia lembretes 24 h e 1 h antes da marcação; a `dedupe_key` impede repetições. |
 | `PurgeOldNotifications` | job | diário | Sistema | Apaga os avisos com mais de 6 meses. |
@@ -402,18 +422,18 @@ endpoint.
 | `OnBookingCreated` | evento | BookingCreated | Sistema | Cria o pagamento PENDING com o valor da marcação e o método escolhido. |
 | `GetBookingPayment` | endpoint | `GET /api/v1/bookings/{id}/payment` | Cliente ou barbearia | Mostra o valor, o estado, o reembolso e para onde pagar (`payTo`). |
 | `ChangePaymentMethod` | endpoint | `PUT /api/v1/bookings/{id}/payment/method` | Cliente | Troca o método enquanto o pagamento está PENDING. |
-| `DeclarePayment` | endpoint | `POST /api/v1/bookings/{id}/payment/declare` | Cliente | Avisa que transferiu, com a key do comprovativo (JPG, PNG ou PDF), e passa a DECLARED. |
-| `ConfirmPaymentReceived` | endpoint | `POST /api/v1/bookings/{id}/payment/received` | Dono ou barbeiro atribuído | Passa a RECEIVED. Em espécie, é o único passo. |
+| `DeclarePayment` | endpoint | `POST /api/v1/bookings/{id}/payment/declare` | Cliente | Avisa que transferiu, com a key do comprovativo (JPG, PNG ou PDF), e passa a DECLARED. Repetido, devolve o estado atual. |
+| `ConfirmPaymentReceived` | endpoint | `POST /api/v1/bookings/{id}/payment/received` | Dono ou barbeiro atribuído | Passa a RECEIVED. Em espécie, é o único passo. Repetido, devolve o estado atual. |
 | `DisputePayment` | endpoint | `POST /api/v1/bookings/{id}/payment/not-received` | Dono | Passa de DECLARED a DISPUTED, e o administrador vê o comprovativo. |
 | `ResolvePaymentDispute` | endpoint | `POST /api/v1/admin/payments/{id}/resolve` | Administrador | Decide RECEIVED ou volta a PENDING. |
 | `OnBookingCancelled` | evento | BookingCancelled, BookingRejected, BookingExpired | Sistema | Um pagamento PENDING passa a CANCELLED. Se já foi declarado ou recebido, fica à espera de um pedido de reembolso. |
-| `RequestRefund` | endpoint | `POST /api/v1/bookings/{id}/payment/refund` | Cliente | Para uma marcação cancelada, recusada ou expirada com pagamento DECLARED ou RECEIVED. Trava o pagamento (`FOR UPDATE`): só há um pedido, do valor pago. |
-| `SendRefund` | endpoint | `POST /api/v1/refunds/{id}/sent` | Dono | Marca como devolvido, com a key do comprovativo: SENT. |
+| `RequestRefund` | endpoint | `POST /api/v1/bookings/{id}/payment/refund` | Cliente | Para uma marcação cancelada, recusada ou expirada com pagamento DECLARED ou RECEIVED. Trava o pagamento (`FOR UPDATE`): só há um pedido, do valor pago. Repetido, devolve o pedido que já existe. |
+| `SendRefund` | endpoint | `POST /api/v1/refunds/{id}/sent` | Dono | Marca como devolvido, com a key do comprovativo: SENT. Repetido, devolve o estado atual. |
 | `ConfirmRefund` | endpoint | `POST /api/v1/refunds/{id}/confirm` | Cliente | Confirma que recebeu: CONFIRMED, e o pagamento passa a REFUNDED. |
 | `DisputeRefund` | endpoint | `POST /api/v1/refunds/{id}/dispute` | Cliente | Diz que não recebeu: DISPUTED, e o administrador vê o comprovativo. |
 | `ResolveRefundDispute` | endpoint | `POST /api/v1/admin/refunds/{id}/resolve` | Administrador | Decide CONFIRMED ou volta a REQUESTED, com nota. |
 | `AutoConfirmRefunds` | job | diário | Sistema | Reembolsos SENT sem resposta do cliente em 7 dias passam a CONFIRMED. |
-| `GetShopRevenue` | endpoint | `GET /api/v1/shops/{id}/revenue?de=&ate=` | Dono | Mostra o total recebido menos os reembolsos, por método e por barbeiro. |
+| `GetShopRevenue` | endpoint | `GET /api/v1/shops/{id}/revenue?from=&to=` | Dono | Mostra o total recebido menos os reembolsos, por método e por barbeiro. |
 
 **Mensagens** (`messaging`)
 
@@ -421,7 +441,7 @@ endpoint.
 |---|---|---|---|---|
 | `OpenConversation` | endpoint | `POST /api/v1/shops/{id}/conversations` | Cliente | Só quem tem uma marcação nessa barbearia. Há uma conversa por cliente e barbearia. |
 | `ListConversations` | endpoint | `GET /api/v1/me/conversations` · `GET /api/v1/shops/{id}/conversations` | Cliente · dono e barbeiros | Mostra a última mensagem e as não lidas. |
-| `ListMessages` | endpoint | `GET /api/v1/conversations/{id}/messages?antes=` | Participantes | Lista as mensagens, paginadas pela data. |
+| `ListMessages` | endpoint | `GET /api/v1/conversations/{id}/messages?cursor=` | Participantes | Lista as mensagens, paginadas por cursor (das mais recentes para trás). |
 | `SendMessage` | endpoint | `POST /api/v1/conversations/{id}/messages` | Participantes | Envia até 2000 caracteres, com telefones (libphonenumber, região AO) e e-mails trocados por •••. O `clientMessageId` evita duplicados, e o outro lado recebe push. |
 | `MarkConversationRead` | endpoint | `POST /api/v1/conversations/{id}/read` | Participantes | Atualiza a marca de leitura do lado de quem lê, que nunca recua. |
 | `PurgeOldMessages` | job | diário | Sistema | Apaga as mensagens com mais de 2 anos. |
@@ -432,6 +452,7 @@ endpoint.
 |---|---|---|---|---|
 | `CreateUploadUrl` | endpoint | `POST /api/v1/uploads` | Utilizador | Recebe o propósito (avatar, capa ou comprovativo), o tipo e o tamanho, e devolve uma URL PUT pré-assinada de 5 min e a key `users/{id}/…`. |
 | `OutboxRelay` | job | a cada 5 s | Sistema | Entrega os eventos que saem da aplicação (e-mails), com até 5 tentativas e um alerta no log quando falham. |
+<!-- /generated:usecases -->
 
 
 ### Formas de entrar
@@ -466,6 +487,10 @@ O 2FA é **opcional para todos**, incluindo os administradores. Os donos de barb
 - **Recuperação da senha:** com 2FA ligado, redefinir a senha também pede o segundo fator.
 - **Avisos:** login num aparelho novo, 2FA ligado ou desligado e uso de um código de recuperação geram um aviso na app
   e um e-mail.
+- **2FA e códigos perdidos:** um administrador desliga o 2FA (`ResetMfaByAdmin`) depois de confirmar a identidade fora
+  da app (por exemplo, videochamada com o BI). Fica gravado quem o fez, as ações sensíveis ficam bloqueadas 24 h e o
+  dono recebe avisos por SMS e e-mail: quem roubou a conta não consegue mudar a senha nem as contas de pagamento antes
+  de o dono reagir.
 
 **Risco aceite:** como o 2FA é opcional e o SMS e o WhatsApp valem também para administradores, uma senha de
 administrador roubada, ou uma troca de SIM, dá acesso às aprovações e aos comprovativos. A confirmação em ações
@@ -514,7 +539,7 @@ Vale para todos, com ou sem 2FA ligado.
 |---|---|
 | Senhas | Argon2id. Refresh tokens, códigos, tokens dos links e códigos de recuperação são guardados só como hash SHA-256 |
 | Bloqueio de login | 5 senhas erradas seguidas bloqueiam a conta 15 min (HTTP 429 com `Retry-After`) |
-| Limite por IP | No AWS WAF, partilhado por todas as instâncias, em `/auth/*`. Em desenvolvimento, em memória |
+| Limite por IP | No AWS WAF, partilhado por todas as instâncias: um apertado em `/auth/*` e um geral, mais folgado (por exemplo, 1.000 pedidos em 5 min), para a busca e os horários públicos. Em desenvolvimento, em memória |
 | Limite por número e por e-mail | 1 código por minuto e 5 por dia por telemóvel; 3 links por hora por e-mail. Contados no PostgreSQL |
 | Códigos de verificação | 6 dígitos, válidos 10 min, 5 tentativas, lidos com `FOR UPDATE` |
 | Ficheiros | URL pré-assinada de 5 min, com a key presa ao id de quem pediu (`users/{id}/…`). O tipo é conferido pelo conteúdo depois do upload (JPG, PNG, PDF, até 5 MB) |
@@ -545,7 +570,8 @@ Todos os erros seguem o padrão **RFC 9457 (Problem Details)**, com `Content-Typ
 | 400 | `VALIDATION_FAILED` | Campos inválidos no pedido, com a lista em `errors` |
 | 401 | `UNAUTHORIZED` | Sem token, token vencido, credenciais ou refresh token inválidos |
 | 401 | `STEP_UP_REQUIRED` | Ação sensível com `auth_time` de mais de 5 min |
-| 403 | `FORBIDDEN` | Sem papel na barbearia, rota de administrador ou conta suspensa |
+| 403 | `TERMS_REQUIRED` | A conta não aceitou a versão atual dos termos. Só `/auth/*` e `/me/terms` funcionam |
+| 403 | `FORBIDDEN` | Sem papel na barbearia, rota de administrador, conta suspensa, ou ação sensível nas 24 h a seguir a um reset do 2FA |
 | 404 | `RESOURCE_NOT_FOUND` | Recurso ou rota inexistente |
 | 409 | `CONFLICT` | Horário já ocupado, folga sobre marcações, telefone ou e-mail já registado, alteração simultânea do mesmo registo |
 | 422 | `BUSINESS_RULE_VIOLATION` | Regra de negócio violada (ex.: cancelar depois do prazo, limite de faltas, número fixo) |
@@ -564,7 +590,7 @@ diagramas e o traço à mão dos desenhos). Está organizado nas mesmas partes d
 |---|---|
 | 0. Âmbito e decisões | As 16 decisões (com o porquê), as nove formas de entrar e a análise de 2FA e MFA |
 | 1. Modelo de dados | 31 tabelas por módulo, com colunas, índices e o diagrama de relacionamentos |
-| 2. Casos de uso | 141 casos de uso, com endpoint, quem chama e o efeito de cada um, com filtros; ciclos de vida e exemplos de pedidos |
+| 2. Casos de uso | 145 casos de uso, com endpoint, quem chama e o efeito de cada um, com filtros; ciclos de vida e exemplos de pedidos |
 | 3. Arquitetura | Módulos, regras de dependência, stack e a infraestrutura na AWS, com custos |
 | 4. Capacidade | Estimativas para 10 mil, 100 mil e 1 milhão de utilizadores, e o que aperta primeiro |
 | 5. Operação | Metas de serviço (SLOs), segurança, concorrência, proteção de dados e observabilidade |
@@ -572,6 +598,7 @@ diagramas e o traço à mão dos desenhos). Está organizado nas mesmas partes d
 
 ### Tabelas por módulo
 
+<!-- generated:tables -->
 | Módulo | Tabelas |
 |---|---|
 | `user` | `users`, `refresh_tokens`, `verification_codes`, `user_identities`, `passkeys`, `webauthn_challenges`, `totp_credentials`, `recovery_codes` |
@@ -583,6 +610,7 @@ diagramas e o traço à mão dos desenhos). Está organizado nas mesmas partes d
 | `payment` | `shop_payment_accounts`, `booking_payments`, `refund_requests` |
 | `messaging` | `conversations`, `messages` |
 | `shared` | `outbox_events`, `shedlock` |
+<!-- /generated:tables -->
 ### Regras centrais do modelo
 
 - **Um utilizador, vários papéis.** Não há tabela de barbeiros nem de donos. Ser dono ou barbeiro é uma linha em
@@ -695,23 +723,31 @@ A dependência aponta sempre para dentro: `infrastructure → application → do
 
 ### Quem depende de quem
 
+<!-- generated:deps -->
 | Quem chama | Caso de uso público | Para quê |
 |---|---|---|
-| `booking` | `shop.QuoteServices`, `shop.GetShopBookingRules`, `shop.GetShopRole` | Preços, durações e quem faz os serviços; modo de confirmação, prazos e faltas; quem aprova |
-| `booking` | `schedule.ReserveSlots` | Ocupar os slots da marcação |
-| `booking` | `review.GetCustomerRating` | Nota do cliente, para a barbearia |
-| `booking` | `user.GetAccountStatus` | Telemóvel verificado para marcar |
-| `schedule` | `shop.GetShopBookingRules`, `shop.QuoteServices`, `shop.GetShopRole` | Horário, intervalo, fuso e antecedência; quem faz os serviços; quem pode mudar uma agenda |
-| `shop` | `user.GetAccountStatus`, `user.FindUserByPhone` | Telemóvel verificado para criar barbearia; avisar quem já tem conta quando é convidado |
-| `review` | `booking.GetBookingParticipants` | Quem pode avaliar e até quando |
-| `payment` | `booking.GetBookingParticipants`, `shop.GetShopRole` | Quem declara, confirma e pede reembolso |
-| `messaging` | `booking.HasBookingWithShop`, `shop.GetShopRole` | Só quem tem marcação abre conversa; quem responde pela barbearia |
+| `booking` | `shop.QuoteServices` | preço, duração e quem faz os serviços |
+| `booking` | `shop.GetShopBookingRules` | modo de confirmação, prazos e faltas |
+| `booking` | `shop.GetShopRole` | quem aprova, cancela e vê a agenda |
+| `booking` | `schedule.ReserveSlots` | ocupar os slots da marcação |
+| `booking` | `review.GetCustomerRating` | nota do cliente para a barbearia |
+| `booking` | `user.GetAccountStatus` | telemóvel verificado para marcar |
+| `schedule` | `shop.GetShopBookingRules` | horário, intervalo, fuso e antecedência |
+| `schedule` | `shop.QuoteServices` | quem faz os serviços pedidos |
+| `schedule` | `shop.GetShopRole` | quem pode mudar a agenda de um barbeiro |
+| `shop` | `user.GetAccountStatus` | telemóvel verificado para criar barbearia |
+| `shop` | `user.FindUserByPhone` | avisar quem já tem conta quando é convidado |
+| `review` | `booking.GetBookingParticipants` | quem pode avaliar e até quando |
+| `payment` | `booking.GetBookingParticipants` | quem declara, confirma e pede reembolso |
+| `payment` | `shop.GetShopRole` | dono e barbeiros da barbearia |
+| `messaging` | `booking.HasBookingWithShop` | só quem tem marcação abre conversa |
+| `messaging` | `shop.GetShopRole` | quem responde pela barbearia |
 
 | Evento | Publica | Ouvem |
 |---|---|---|
 | `UserAccountDeleted` | `user` | `shop`, `booking`, `review` |
 | `LoginFromNewDevice`, `MfaChanged`, `RecoveryCodeUsed` | `user` | `notification` |
-| `ShopApproved`, `ShopRejected`, `InviteCreated` | `shop` | `notification` |
+| `ShopApproved`, `ShopRejected`, `ShopReinstated`, `InviteCreated` | `shop` | `notification` |
 | `ShopSuspended` | `shop` | `booking`, `notification` |
 | `ShopScheduleChanged` | `shop` | `schedule` |
 | `MemberRemoved` | `shop` | `booking`, `schedule` |
@@ -721,6 +757,7 @@ A dependência aponta sempre para dentro: `infrastructure → application → do
 | `ReviewPublished`, `ReviewHidden` | `review` | `notification` |
 | `PaymentDeclared`, `RefundRequested`, `RefundSent` | `payment` | `notification` |
 | `MessageSent` | `messaging` | `notification` |
+<!-- /generated:deps -->
 
 - Ninguém depende do `notification`, e o `user` não chama ninguém.
 - Nas chamadas, só o par `booking` ↔ `review` depende nos dois sentidos (a nota do cliente e os participantes da
@@ -767,7 +804,7 @@ se mudar a arquitetura ou a infraestrutura, atualize a página e volte a exporta
   A segunda zona existe porque a AWS a exige ao balanceador e ao grupo de sub-redes da base.
 - **Produção:** em `af-south-1` (Cidade do Cabo), a região mais perto de Angola, por cerca de 290 US$/mês, mais o
   tráfego de saída:
-  - de 2 a 6 tarefas ECS Fargate ARM64 em sub-redes privadas, uma por zona;
+  - 2 tarefas ECS Fargate ARM64 em sub-redes privadas, uma por zona, que escalam até 6 (de 3 a 8 em 3 zonas na fase 3);
   - 1 NAT Gateway para a saída;
   - RDS PostgreSQL 18 + PostGIS Multi-AZ (db.t4g.small), com uma réplica de espera que assume se a zona cair;
   - ALB com AWS WAF, que faz os limites por IP sem Redis;
@@ -782,10 +819,10 @@ se mudar a arquitetura ou a infraestrutura, atualize a página e volte a exporta
   | RDS (db.t4g.small Multi-AZ, 50 GB gp3) | 75 | Preço AWS: 0,082 US$/hora, 0,302 US$ por GB-mês |
   | NAT | 42 | Preço AWS: 0,057 US$/hora, mais 0,057 US$ por GB processado |
   | Balanceador | 29 | Preço AWS: 0,03 US$/hora, mais cerca de 1 LCU a 0,0095 US$ |
-  | WAF | 27 | Preço AWS: 5 US$ por ACL, 1 US$ por regra, 0,60 US$ por milhão de pedidos (~30 milhões) |
-  | CloudWatch | 15 | estimativa |
+  | WAF | 28 | Preço AWS: 5 US$ por ACL, 1 US$ por regra (5 regras), 0,60 US$ por milhão de pedidos (~30 milhões) |
+  | CloudWatch | 15 | Preço AWS: 0,30 US$ por métrica (~30, filtradas), 0,10 US$ por alarme, cerca de 0,50 US$ por GB de logs; uso estimado |
   | IPv4 (3 endereços) | 11 | Preço AWS: 0,005 US$/hora cada |
-  | S3, Secrets Manager, ECR, Route 53 | 10 | estimativa |
+  | S3, Secrets Manager, ECR, Route 53 | 8 | Preço AWS: 0,40 US$ por segredo, 0,10 US$ por GB no ECR, 0,50 US$ por zona DNS; uso do S3 estimado |
 - **Um só NAT:** a queda da zona A deixa a zona B sem saída para os fornecedores. Um NAT por zona custa mais cerca de
   42 US$/mês.
 - **Fora da AWS:**
@@ -866,7 +903,9 @@ Exemplo: lista de espera para um horário cheio (fase 2).
    - um teste com pedidos em paralelo, se houver disputa.
 
    Os pacotes espelham-se em `src/test/java`.
-7. **Design:** atualizar o [docs/design.html](docs/design.html) e este README.
+7. **Design:** juntar o caso de uso ao [docs/design-data.js](docs/design-data.js), em português e em inglês, e correr
+   `node scripts/readme-tables.js`. Reescreve as tabelas geradas nos dois README; com `--check`, falha se estiverem
+   desatualizadas.
 
 ### Convenções de nomes
 
@@ -959,8 +998,8 @@ ligações, ou o job de slots demorar mais de 1 minuto a apagar.
 | RDS, disco, réplica e Proxy | 75 | ≈ 150 | ≈ 576 |
 | Valkey | — | 48 | 48 |
 | NAT (1, 2 e 3) | 42 | 84 | 126 |
-| ALB, WAF e IPv4 | 67 | ≈ 56 | ≈ 94 |
-| CloudWatch, CloudFront, S3, segredos, ECR e DNS (estimativa) | ≈ 28 | ≈ 50 | ≈ 130 |
+| ALB, WAF e IPv4 | 68 | ≈ 56 | ≈ 94 |
+| CloudWatch, CloudFront, S3, segredos, ECR e DNS (preços AWS, uso estimado) | ≈ 23 | ≈ 50 | ≈ 130 |
 | **Total**, sem o tráfego de saída | **≈ 290** | **≈ 490** | **≈ 1.200** |
 
 ## Próximos passos

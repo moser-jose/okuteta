@@ -20,7 +20,7 @@ API de marcações em barbearias de Angola. O cliente encontra barbearias perto 
 | **Stack** | Java 25 · Spring Boot 4 · PostgreSQL 18 + PostGIS · Flyway · Maven |
 | **Architecture / Arquitetura** | Modular monolith, Clean Architecture · monólito modular |
 | **Modules / Módulos** | `user` · `shop` · `schedule` · `booking` · `review` · `notification` · `payment` · `messaging` |
-| **Size / Tamanho** | 31 tables / tabelas · 141 use cases / casos de uso |
+| **Size / Tamanho** | 31 tables / tabelas · 145 use cases / casos de uso |
 | **Sign-in / Entrada** | Email or phone + password · SMS or WhatsApp code · email link · Google · Facebook · Apple · passkeys · optional 2FA / 2FA opcional |
 | **Bookings / Marcações** | Slot-based schedule, no overlaps, instant or approved, per-barbershop rules · agenda por slots, sem sobreposição |
 | **Payments / Pagamentos** | Paid directly to the barbershop (cash, Multicaixa Express, Unitel Money, Afrimoney, transfer); the platform records payments and refunds · pago direto à barbearia |
