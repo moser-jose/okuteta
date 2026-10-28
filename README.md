@@ -25,7 +25,8 @@ API de marcações em barbearias de Angola. O cliente encontra barbearias perto 
 | **Bookings / Marcações** | Slot-based schedule, no overlaps, instant or approved, per-barbershop rules · agenda por slots, sem sobreposição |
 | **Payments / Pagamentos** | Paid directly to the barbershop (cash, Multicaixa Express, Unitel Money, Afrimoney, transfer); the platform records payments and refunds · pago direto à barbearia |
 | **Providers / Fornecedores** | Twilio (SMS, WhatsApp) · Brevo (email) · Firebase (push) · AWS S3 |
-| **Infrastructure / Infraestrutura** | AWS `af-south-1`: ECS Fargate, RDS Multi-AZ, ALB + WAF, Terraform · ≈ US$290/month production, ≈ US$85 test |
+| **Infrastructure / Infraestrutura** | AWS `af-south-1`: ECS Fargate, RDS Multi-AZ, ALB + WAF, Terraform · ≈ US$85/month test |
+| **Scale / Escala** | 10 thousand users ≈ US$290/month · 100 thousand ≈ US$490 (+ Valkey cache, CloudFront) · 1 million ≈ US$1,200 (+ workers, read replica, RDS Proxy, partitions) · ~100 requests/s at 1 million |
 
 ## Documentation / Documentação
 

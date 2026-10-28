@@ -61,6 +61,8 @@ uses English names (`shop`, `booking`, `member`); user-facing text is in Angolan
 
 ### After the MVP
 
+Product features by phase. The infrastructure each phase adds is in [Scale roadmap](#scale-roadmap).
+
 - **Phase 2:**
   - reschedule without cancelling;
   - waiting list;
@@ -569,7 +571,7 @@ fonts, diagrams and hand-drawn sketches). It's organised in the same parts as Ba
 | 1. Data model | 31 tables by module, with columns, indexes and the relationship diagram |
 | 2. Use cases | 141 use cases, with endpoint, caller and effect, filterable; state diagrams and request/response examples |
 | 3. Architecture | Modules, dependency rules, stack and the AWS infrastructure, with costs |
-| 4. Capacity | Estimates for 3,000 barbershops and 300,000 customers |
+| 4. Capacity | Estimates for 10 thousand, 100 thousand and 1 million users, and what gets tight first |
 | 5. Operations | Service level objectives (SLOs), security, concurrency, data protection and observability |
 | 6. Build plan | The 11 MVP steps and the later phases |
 
@@ -644,21 +646,39 @@ fonts, diagrams and hand-drawn sketches). It's organised in the same parts as Ba
 
 ### Estimated capacity
 
-| Metric | Estimate |
-|---|---|
-| Barbershops / barbers | 3,000 / 12,000 |
-| Registered customers | 300,000 |
-| Bookings | 36,000 per day; peak of ~4 per second (Saturday morning) |
-| Availability queries | peak of ~60 per second |
-| API peak | ~120 requests per second: 1 instance is enough, 2 for zero-downtime deploys |
-| Stored slots | ~15 million rows (12,000 barbers × 30 days × 40 slots) |
-| Data in the first year | under 35 GB |
+Order-of-magnitude estimates for 10 thousand, 100 thousand and 1 million registered users (customers and barbers).
+Assumptions, to be replaced with real data:
 
-The conclusion: the volume is small. The hard part is keeping the schedule right:
+- one barbershop per 100 users, with 4 barbers;
+- half of the users active each month;
+- 1.5 bookings per active customer per month, i.e. 0.025 bookings per user per day;
+- Saturday peak (×1.5), with 25% of the day's bookings between 09:00 and 10:00;
+- 15 availability queries and 40 API requests per booking.
 
-- several people wanting the same barber at the same time;
-- slots regenerated without touching taken ones;
-- converting between UTC and local time.
+| Metric | 10 thousand | 100 thousand | 1 million |
+|---|---|---|---|
+| Barbershops / barbers | 100 / 400 | 1,000 / 4,000 | 10,000 / 40,000 |
+| Bookings per day | 250 | 2,500 | 25,000 |
+| Booking peak | ~2 per minute | ~0.3/s | ~2.6/s |
+| Availability query peak | ~0.4/s | ~4/s | ~40/s |
+| API request peak | ~1/s | ~10/s | ~100/s |
+| Push per day (8 per booking) | 2 thousand | 20 thousand | 200 thousand |
+| Stored slots (barbers × 30 days × 40) | 0.5 million | 4.8 million | 48 million |
+| Slots generated and deleted per day | 16 thousand | 160 thousand | 1.6 million |
+| Data in the first year | < 1 GB | ~5 GB | ~50 GB |
+| API tasks (~150 requests/s each, to be measured with k6) | 2 (for availability) | 2 | 3 to 8, across 3 zones |
+| AWS cost per month | ≈ US$290 | ≈ US$490 | ≈ US$1,200 |
+
+**Request volume stays small even at 1 million** (about 100 requests per second). What gets tight first:
+
+- **Saturday morning:** several people want the same barber at the same time. The lock is per barber, so contention
+  stays among those people.
+- **The slot table:** at 1 million users it has 48 million rows and changes 1.6 million a day. `DELETE` stops being
+  enough, and it needs monthly partitions, dropping the old ones.
+- **The SMS bill:** with 1 million accounts, SMS codes weigh more on the bill than AWS. Passkeys and WhatsApp reduce
+  the number of SMS.
+- **Database connections:** tasks × each task's pool. With 8 tasks and a pool of 10, that's already 80 connections,
+  and from there RDS Proxy comes in.
 
 ## Architecture
 
@@ -869,6 +889,88 @@ Example: a waiting list for a full time slot (phase 2).
 | Controller         | `BookingController`                            |
 | Request / Response | `CreateBookingRequest`, `BookingResponse`      |
 | Event              | `BookingConfirmed`, `MemberRemoved`            |
+
+## Scale roadmap
+
+Each phase only adds what that phase's volume needs. Starting with everything from phase 3 would add cost and
+complexity with no gain. The triggers say when to move to the next phase, measured rather than guessed. Instance prices
+come from the public AWS Price List API for `af-south-1` (27/10/2026); usage-based items are estimates.
+
+### Phase 1 · MVP · up to 10 thousand users
+
+~1 request/s at peak · 250 bookings/day · ≈ US$290/month
+
+- The 11 steps in [Next steps](#next-steps): the eight modules and AWS.
+- The approved production setup:
+  - 2 Fargate tasks;
+  - RDS db.t4g.small Multi-AZ;
+  - ALB with WAF;
+  - 1 NAT;
+  - no Redis.
+
+  It handles far more than this volume. The 2 tasks and Multi-AZ are there for availability, not load.
+- Jobs (push, reminders, slots, outbox) inside the API, with ShedLock.
+- JSON logs, metrics in CloudWatch and the alarms from the design.
+- A k6 load test, with contention for the same slot, before opening to the public.
+- Outside the code: the APD request, the `.ao` domain and the Meta and Apple approvals.
+
+**Move to phase 2 when** the availability p95 goes above 300 ms, RDS CPU goes above 60% at the Saturday peak, or there
+are more than 50 thousand users.
+
+### Phase 2 · Growth · up to 100 thousand users
+
+~10 requests/s at peak · 2,500 bookings/day · ≈ US$490/month
+
+- **Valkey cache** (ElastiCache, cache.t4g.small with a replica, ≈ US$48):
+  - search, for 60 s;
+  - barbershop profile, for 5 min;
+  - availability, for 30 s, invalidated by booking events.
+
+  Slots never come from the cache when booking.
+- **RDS db.t4g.medium** Multi-AZ (≈ US$120 plus storage).
+- **One NAT per zone** (+≈ US$42): outbound traffic to providers survives losing a zone.
+- **CloudFront** in front of public photos (avatars and covers), with long caching and `?v=`.
+- **OpenTelemetry:** traces from request to push, dashboards and alerts on SLO burn rate.
+- **Product:** rescheduling, waiting list, revenue model, reports and moderation, data export and push-approved 2FA.
+- A load test before each busy season: year end and national holidays.
+
+**Move to phase 3 when** the p95 stays above the SLO with the cache, RDS goes above 60% CPU or 80% of connections, or
+the slot job takes more than 1 minute to delete.
+
+### Phase 3 · Scale · 1 million+ users
+
+~100 requests/s at peak · 25,000 bookings/day · ≈ US$1,200/month
+
+- **API tasks:** 3 to 8, with autoscaling, across the region's 3 zones, with one NAT per zone.
+- **Separate workers:** an ECS service (same image, `worker` profile) runs push, reminders, slots and the outbox, so
+  sending peaks don't take CPU from requests.
+- **Database:**
+  - RDS db.m6g.large Multi-AZ (≈ US$304 plus storage);
+  - a read replica for search and availability (≈ US$153);
+  - RDS Proxy in front of the connections (≈ US$29).
+- **Monthly partitioning** of `member_slots`, `messages` and `notifications`: drop partitions instead of deleting
+  millions of rows.
+- **Electronic payments** through an Angolan aggregator, with automatic refunds. The `payment` module can become its own
+  service if the aggregator requires isolation.
+- **Analytics data:** CDC export to S3, queried with Athena, away from the production database.
+- **Regional disaster:** snapshots copied to another region (`eu-west-1`).
+- On-call with runbooks, and regular load tests.
+- **Fewer SMS:** passkeys and WhatsApp as the default ways to sign in.
+
+**Beyond this:**
+
+- OpenSearch, only if geographic search in PostgreSQL misses the SLO;
+- microservices, only for a module with a concrete reason to leave.
+
+| Cost per month (US$) | Phase 1 | Phase 2 | Phase 3 |
+|---|---|---|---|
+| API tasks and workers | 78 | ≈ 100 | ≈ 196 |
+| RDS, storage, replica and Proxy | 75 | ≈ 150 | ≈ 576 |
+| Valkey | — | 48 | 48 |
+| NAT (1, 2 and 3) | 42 | 84 | 126 |
+| ALB, WAF and IPv4 | 67 | ≈ 56 | ≈ 94 |
+| CloudWatch, CloudFront, S3, secrets, ECR and DNS (estimate) | ≈ 28 | ≈ 50 | ≈ 130 |
+| **Total**, before outbound traffic | **≈ 290** | **≈ 490** | **≈ 1,200** |
 
 ## Next steps
 
