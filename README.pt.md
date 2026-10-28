@@ -60,6 +60,8 @@ nomes em inglês (`shop`, `booking`, `member`); os textos que o utilizador vê u
 
 ### Depois do MVP
 
+Funcionalidades por fase. O que cada fase junta à infraestrutura está no [Roadmap de escala](#roadmap-de-escala).
+
 - **Fase 2:**
   - reagendar sem cancelar;
   - lista de espera;
@@ -564,7 +566,7 @@ diagramas e o traço à mão dos desenhos). Está organizado nas mesmas partes d
 | 1. Modelo de dados | 31 tabelas por módulo, com colunas, índices e o diagrama de relacionamentos |
 | 2. Casos de uso | 141 casos de uso, com endpoint, quem chama e o efeito de cada um, com filtros; ciclos de vida e exemplos de pedidos |
 | 3. Arquitetura | Módulos, regras de dependência, stack e a infraestrutura na AWS, com custos |
-| 4. Capacidade | Estimativas para 3.000 barbearias e 300 mil clientes |
+| 4. Capacidade | Estimativas para 10 mil, 100 mil e 1 milhão de utilizadores, e o que aperta primeiro |
 | 5. Operação | Metas de serviço (SLOs), segurança, concorrência, proteção de dados e observabilidade |
 | 6. Plano de construção | Os 11 passos do MVP e as fases seguintes |
 
@@ -637,21 +639,39 @@ diagramas e o traço à mão dos desenhos). Está organizado nas mesmas partes d
 
 ### Capacidade estimada
 
-| Métrica | Estimativa |
-|---|---|
-| Barbearias / barbeiros | 3.000 / 12.000 |
-| Clientes registados | 300 mil |
-| Marcações | 36 mil por dia; pico de ~4 por segundo (sábado de manhã) |
-| Consultas de horários | pico de ~60 por segundo |
-| Pico na API | ~120 pedidos por segundo: 1 instância chega, 2 para deploy sem parar |
-| Slots guardados | ~15 milhões de linhas (12 mil barbeiros × 30 dias × 40 slots) |
-| Dados no primeiro ano | menos de 35 GB |
+Estimativa de ordem de grandeza para 10 mil, 100 mil e 1 milhão de utilizadores registados (clientes e barbeiros). As
+suposições, para trocar por dados reais:
 
-A conclusão: o volume é pequeno. O difícil é a agenda estar certa:
+- uma barbearia por cada 100 utilizadores, com 4 barbeiros;
+- metade dos utilizadores ativos em cada mês;
+- 1,5 marcações por cliente ativo por mês, ou seja, 0,025 marcações por utilizador por dia;
+- pico ao sábado (×1,5), com 25% das marcações do dia entre as 09:00 e as 10:00;
+- 15 consultas de horários e 40 pedidos à API por marcação.
 
-- várias pessoas a querer o mesmo barbeiro à mesma hora;
-- slots regenerados sem tocar nos ocupados;
-- a conversão entre UTC e a hora local.
+| Métrica | 10 mil | 100 mil | 1 milhão |
+|---|---|---|---|
+| Barbearias / barbeiros | 100 / 400 | 1.000 / 4.000 | 10.000 / 40.000 |
+| Marcações por dia | 250 | 2.500 | 25.000 |
+| Pico de marcações | ~2 por minuto | ~0,3/s | ~2,6/s |
+| Pico de consultas de horários | ~0,4/s | ~4/s | ~40/s |
+| Pico de pedidos na API | ~1/s | ~10/s | ~100/s |
+| Push por dia (8 por marcação) | 2 mil | 20 mil | 200 mil |
+| Slots guardados (barbeiros × 30 dias × 40) | 0,5 mi | 4,8 mi | 48 mi |
+| Slots gerados e apagados por dia | 16 mil | 160 mil | 1,6 mi |
+| Dados no primeiro ano | < 1 GB | ~5 GB | ~50 GB |
+| Tarefas da API (~150 pedidos/s cada, a medir com k6) | 2 (pela disponibilidade) | 2 | 3 a 8, em 3 zonas |
+| Custo na AWS por mês | ≈ 290 US$ | ≈ 490 US$ | ≈ 1.200 US$ |
+
+**O volume de pedidos é pequeno mesmo com 1 milhão** (cerca de 100 por segundo). O que aperta primeiro:
+
+- **Sábado de manhã:** várias pessoas querem o mesmo barbeiro à mesma hora. A trava é por barbeiro, por isso a disputa
+  fica só entre essas pessoas.
+- **A tabela de slots:** com 1 milhão de utilizadores tem 48 milhões de linhas e muda 1,6 milhões por dia. O `DELETE`
+  deixa de servir, e passa a ser preciso particionar por mês e largar as partições antigas.
+- **A conta dos SMS:** com 1 milhão de contas, os códigos por SMS pesam mais na fatura do que a AWS. As passkeys e o
+  WhatsApp baixam o número de SMS.
+- **As ligações ao banco:** são as tarefas × o pool de cada uma. Com 8 tarefas e um pool de 10, já são 80 ligações, e a
+  partir daí entra o RDS Proxy.
 
 ## Arquitetura
 
@@ -859,6 +879,89 @@ Exemplo: lista de espera para um horário cheio (fase 2).
 | Controller         | `BookingController`                         |
 | Request / Response | `CreateBookingRequest`, `BookingResponse`   |
 | Evento             | `BookingConfirmed`, `MemberRemoved`         |
+
+## Roadmap de escala
+
+Cada fase só junta o que o volume dessa fase exige. Começar já com tudo da fase 3 aumentaria o custo e a complexidade
+sem ganho. Os gatilhos dizem quando passar à fase seguinte, medidos e não adivinhados. Os preços das instâncias vêm da
+API pública de preços da AWS para `af-south-1` (27/10/2026); o que depende do uso é estimativa.
+
+### Fase 1 · MVP · até 10 mil utilizadores
+
+~1 pedido/s no pico · 250 marcações/dia · ≈ 290 US$/mês
+
+- Os 11 passos dos [Próximos passos](#próximos-passos): os oito módulos e a AWS.
+- A produção aprovada:
+  - 2 tarefas Fargate;
+  - RDS db.t4g.small Multi-AZ;
+  - ALB com WAF;
+  - 1 NAT;
+  - sem Redis.
+
+  Aguenta muito mais do que este volume. As 2 tarefas e o Multi-AZ existem pela disponibilidade, não pela carga.
+- Jobs (push, lembretes, slots, outbox) dentro da API, com ShedLock.
+- Logs em JSON, métricas no CloudWatch e os alarmes do design.
+- Teste de carga com k6, com a disputa do mesmo horário, antes de abrir ao público.
+- Fora do código: o pedido à APD, o domínio `.ao` e as aprovações da Meta e da Apple.
+
+**Passar à fase 2 quando** o p95 dos horários livres passar de 300 ms, o CPU do RDS passar de 60% no pico de sábado,
+ou houver mais de 50 mil utilizadores.
+
+### Fase 2 · Crescimento · até 100 mil utilizadores
+
+~10 pedidos/s no pico · 2.500 marcações/dia · ≈ 490 US$/mês
+
+- **Cache Valkey** (ElastiCache, cache.t4g.small com réplica, ≈ 48 US$):
+  - a busca, por 60 s;
+  - o perfil da barbearia, por 5 min;
+  - os horários livres, por 30 s, invalidados pelos eventos de marcação.
+
+  Os slots nunca vêm da cache na hora de marcar.
+- **RDS db.t4g.medium** Multi-AZ (≈ 120 US$ mais o disco).
+- **Um NAT por zona** (+≈ 42 US$): a saída para os fornecedores sobrevive à queda de uma zona.
+- **CloudFront** à frente das fotos públicas (avatares e capas), com cache longa e `?v=`.
+- **OpenTelemetry:** traces do pedido ao push, painéis e alertas pela velocidade de consumo do SLO.
+- **Produto:** reagendar, lista de espera, modelo de receita, denúncias e moderação, exportação dos dados e 2FA aprovado
+  por push.
+- Teste de carga antes de cada época forte: fim de ano e feriados nacionais.
+
+**Passar à fase 3 quando** o p95 continuar acima do SLO com a cache, o RDS passar de 60% de CPU ou de 80% das
+ligações, ou o job de slots demorar mais de 1 minuto a apagar.
+
+### Fase 3 · Escala · 1 milhão+ de utilizadores
+
+~100 pedidos/s no pico · 25.000 marcações/dia · ≈ 1.200 US$/mês
+
+- **Tarefas da API:** de 3 a 8, com autoscaling, nas 3 zonas da região e com um NAT por zona.
+- **Workers à parte:** um serviço ECS (mesma imagem, perfil `worker`) corre o push, os lembretes, os slots e o outbox.
+  Assim, os picos de envio não tiram CPU aos pedidos.
+- **Banco:**
+  - RDS db.m6g.large Multi-AZ (≈ 304 US$ mais o disco);
+  - uma réplica de leitura para a busca e os horários livres (≈ 153 US$);
+  - RDS Proxy à frente das ligações (≈ 29 US$).
+- **Particionamento mensal** de `member_slots`, `messages` e `notifications`: largar partições em vez de apagar
+  milhões de linhas.
+- **Pagamento eletrónico** por um agregador angolano, com reembolso automático. O módulo `payment` pode sair para um
+  serviço próprio, se o agregador exigir isolamento.
+- **Dados para análise:** exportação por CDC para o S3, consultada com o Athena, longe do banco de produção.
+- **Desastre regional:** snapshots copiados para outra região (`eu-west-1`).
+- Plantão com runbooks e testes de carga regulares.
+- **Menos SMS:** passkeys e WhatsApp como formas de entrar por omissão.
+
+**Depois daqui:**
+
+- OpenSearch, só se a busca geográfica no PostgreSQL passar do SLO;
+- microserviços, só para um módulo com uma razão concreta para sair.
+
+| Custo por mês (US$) | Fase 1 | Fase 2 | Fase 3 |
+|---|---|---|---|
+| Tarefas da API e workers | 78 | ≈ 100 | ≈ 196 |
+| RDS, disco, réplica e Proxy | 75 | ≈ 150 | ≈ 576 |
+| Valkey | — | 48 | 48 |
+| NAT (1, 2 e 3) | 42 | 84 | 126 |
+| ALB, WAF e IPv4 | 67 | ≈ 56 | ≈ 94 |
+| CloudWatch, CloudFront, S3, segredos, ECR e DNS (estimativa) | ≈ 28 | ≈ 50 | ≈ 130 |
+| **Total**, sem o tráfego de saída | **≈ 290** | **≈ 490** | **≈ 1.200** |
 
 ## Próximos passos
 

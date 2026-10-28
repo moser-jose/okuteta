@@ -227,9 +227,9 @@ footer { color: var(--muted); font-size: 14px; border-top: 1px solid var(--line)
     <div class="toc-g"><a href="#modelo"><b>1</b>Modelo de dados</a><span><a href="#agenda">Agenda</a><a href="#ciclos">Ciclos de vida</a></span></div>
     <div class="toc-g"><a href="#casos-de-uso"><b>2</b>Casos de uso</a><span><a href="#exemplos">Exemplos de pedidos</a></span></div>
     <div class="toc-g"><a href="#arquitetura"><b>3</b>Arquitetura</a><span><a href="#visao">Visão geral</a><a href="#dependencias">Dependências</a><a href="#aws">Na AWS</a><a href="#custos">Custos</a></span></div>
-    <div class="toc-g"><a href="#capacidade"><b>4</b>Capacidade</a></div>
+    <div class="toc-g"><a href="#capacidade"><b>4</b>Capacidade</a><span><a href="#capacidade">10 mil, 100 mil, 1 milhão</a></span></div>
     <div class="toc-g"><a href="#operacao"><b>5</b>Operação</a></div>
-    <div class="toc-g"><a href="#roadmap"><b>6</b>Plano de construção</a></div>
+    <div class="toc-g"><a href="#roadmap"><b>6</b>Plano de construção</a><span><a href="#escala">Roadmap de escala</a></span></div>
   </nav>
   <div class="legend" id="legend"></div>
 </header>
@@ -423,6 +423,7 @@ sequenceDiagram
         <tr><td class="num">4–5</td><td class="fx">2FA opcional para todos, com SMS e WhatsApp também para administradores.</td></tr>
         <tr><td class="num">6–8</td><td class="fx">Arquitetura na AWS (af-south-1, Fargate, RDS Multi-AZ, WAF e 1 NAT), com custos e desenhos à mão como os do Bazza.</td></tr>
         <tr><td class="num">9</td><td class="fx">Visão geral, dependências entre módulos, ciclos de vida, exemplos de pedidos, riscos, revisões, filtros nos casos de uso e índice por partes. Entraram 6 casos de uso públicos que faltavam, os avisos de segurança passaram do <code>user</code> para o <code>notification</code>, os custos foram confirmados na API de preços da AWS e o exemplo da agenda foi corrigido (às 14:30 o Mário não cabe).</td></tr>
+        <tr><td class="num">11</td><td class="fx">Capacidade e roadmap de escala para 10 mil, 100 mil e 1 milhão de utilizadores, com o que entra em cada fase, os gatilhos para passar à seguinte e o custo. A estimativa de marcações baixou de 3 por barbeiro por dia para 1,5 por cliente ativo por mês.</td></tr>
       </tbody>
     </table>
   </div>
@@ -1038,28 +1039,42 @@ POST /api/v1/bookings/0192…/payment/declare
 <div class="part-title" id="capacidade"><span class="num">4</span><h2>Capacidade</h2></div>
 
 <section>
-  <p>É uma estimativa de ordem de grandeza, e as suposições estão na segunda coluna para serem ajustadas quando houver dados reais.</p>
+  <p>É uma estimativa de ordem de grandeza para 10 mil, 100 mil e 1 milhão de utilizadores registados (clientes e barbeiros). As suposições ficam escritas para serem trocadas por dados reais:</p>
+  <ul class="plain">
+    <li>uma barbearia por cada 100 utilizadores, com 4 barbeiros;</li>
+    <li>metade dos utilizadores ativos em cada mês;</li>
+    <li>1,5 marcações por cliente ativo por mês, o que dá 0,025 marcações por utilizador por dia;</li>
+    <li>pico ao sábado (×1,5), com 25% das marcações do dia entre as 09:00 e as 10:00;</li>
+    <li>15 consultas de horários e 40 pedidos à API por marcação.</li>
+  </ul>
   <div class="wide">
     <table class="grid">
-      <thead><tr><th>Métrica</th><th>Suposição</th><th>Resultado</th></tr></thead>
+      <thead><tr><th>Métrica</th><th>10 mil</th><th>100 mil</th><th>1 milhão</th></tr></thead>
       <tbody>
-        <tr><td>Barbearias</td><td>meta em Luanda, Benguela, Huambo e Lubango</td><td class="num">3.000</td></tr>
-        <tr><td>Barbeiros</td><td>4 por barbearia</td><td class="num">12.000</td></tr>
-        <tr><td>Clientes registados</td><td>meta</td><td class="num">300.000</td></tr>
-        <tr><td>Marcações</td><td>3 por barbeiro por dia pela app</td><td class="num">36 mil/dia</td></tr>
-        <tr><td>Pico de marcações</td><td>sábado ×1,5, com 25% do dia entre as 09:00 e as 10:00</td><td class="num">~4/s</td></tr>
-        <tr><td>Consultas de horários</td><td>15 por marcação</td><td class="num">pico ~60/s</td></tr>
-        <tr><td>Slots guardados</td><td>12.000 barbeiros × 30 dias × 40 slots de 15 min</td><td class="num">~15 mi linhas</td></tr>
-        <tr><td>Geração diária de slots</td><td>um dia novo por barbeiro</td><td class="num">~500 mil inserts/dia</td></tr>
-        <tr><td>Pedidos na API</td><td>~30 por marcação (busca, perfis, agenda)</td><td class="num">pico ~120/s</td></tr>
-        <tr><td>Instâncias</td><td>~150 req/s por tarefa de 1 vCPU (a medir com k6)</td><td class="num">1, mais 1 para deploy sem parar</td></tr>
-        <tr><td>Dados no primeiro ano</td><td>13 mi marcações × ~1,5 KB, mais os slots</td><td class="num">&lt; 35 GB</td></tr>
+        <tr><td>Barbearias / barbeiros</td><td class="num">100 / 400</td><td class="num">1.000 / 4.000</td><td class="num">10.000 / 40.000</td></tr>
+        <tr><td>Marcações por dia</td><td class="num">250</td><td class="num">2.500</td><td class="num">25.000</td></tr>
+        <tr><td>Pico de marcações</td><td class="num">~2 por minuto</td><td class="num">~0,3/s</td><td class="num">~2,6/s</td></tr>
+        <tr><td>Pico de consultas de horários</td><td class="num">~0,4/s</td><td class="num">~4/s</td><td class="num">~40/s</td></tr>
+        <tr><td>Pico de pedidos na API</td><td class="num">~1/s</td><td class="num">~10/s</td><td class="num">~100/s</td></tr>
+        <tr><td>Push por dia (8 por marcação)</td><td class="num">2 mil</td><td class="num">20 mil</td><td class="num">200 mil</td></tr>
+        <tr><td>Slots guardados (barbeiros × 30 dias × 40)</td><td class="num">0,5 mi</td><td class="num">4,8 mi</td><td class="num">48 mi</td></tr>
+        <tr><td>Slots gerados e apagados por dia</td><td class="num">16 mil</td><td class="num">160 mil</td><td class="num">1,6 mi</td></tr>
+        <tr><td>Dados no primeiro ano</td><td class="num">&lt; 1 GB</td><td class="num">~5 GB</td><td class="num">~50 GB</td></tr>
+        <tr><td>Tarefas da API (~150 pedidos/s cada, a medir com k6)</td><td class="num">2 (pela disponibilidade)</td><td class="num">2</td><td class="num">3 a 8, em 3 zonas</td></tr>
+        <tr><td>Custo na AWS por mês (ver <a href="#escala">fases</a>)</td><td class="num">≈ 290 US$</td><td class="num">≈ 490 US$</td><td class="num">≈ 1.200 US$</td></tr>
       </tbody>
     </table>
   </div>
   <div class="callout">
-    <p><strong>O volume é pequeno.</strong> O que custa é a agenda estar certa: sábado de manhã, com várias pessoas a querer o mesmo barbeiro à mesma hora, slots que têm de ser regenerados sem tocar nos ocupados quando muda o horário, o intervalo ou o fuso, e a conversão entre UTC no banco e a hora local de cada barbearia.</p>
+    <p><strong>O volume de pedidos é pequeno mesmo com 1 milhão</strong>: cerca de 100 pedidos por segundo, que um PostgreSQL bem indexado e poucas tarefas aguentam. O que aperta primeiro é outra coisa:</p>
+    <ul class="plain">
+      <li><strong>Sábado de manhã:</strong> várias pessoas querem o mesmo barbeiro à mesma hora. A trava é por barbeiro, por isso a disputa fica só entre essas pessoas.</li>
+      <li><strong>A tabela de slots:</strong> com 1 milhão de utilizadores tem 48 milhões de linhas e muda 1,6 milhões por dia. Apagar com <code>DELETE</code> deixa de servir, e passa a ser preciso particionar por mês e largar as partições antigas.</li>
+      <li><strong>A conta dos SMS:</strong> com 1 milhão de contas, os códigos por SMS pesam mais na fatura do que a AWS. As passkeys e o WhatsApp baixam o número de SMS.</li>
+      <li><strong>As ligações ao banco:</strong> são as tarefas × o pool de cada uma. Com 8 tarefas e um pool de 10, já são 80 ligações, e a partir daí entra o RDS Proxy.</li>
+    </ul>
   </div>
+  <p>A estimativa anterior contava 3 marcações por barbeiro por dia (36 mil marcações para 300 mil clientes), o que dava a cada cliente uma marcação a cada 8 dias. Esta usa 1,5 por mês.</p>
 </section>
 </div>
 
@@ -1147,33 +1162,82 @@ POST /api/v1/bookings/0192…/payment/declare
   </ol>
 </section>
 
-<section>
-  <div class="eyebrow">Depois do MVP</div>
-  <h2>Fases seguintes</h2>
+<section id="escala">
+  <div class="eyebrow">Roadmap de escala</div>
+  <h2>O que é preciso para 10 mil, 100 mil e 1 milhão de utilizadores</h2>
+  <p>Cada fase só junta o que o volume dessa fase exige. Começar já com tudo da fase 3 aumentaria o custo e a complexidade sem ganho. Os gatilhos dizem quando passar à fase seguinte, medidos e não adivinhados. Os custos usam os preços da API pública da AWS para <code>af-south-1</code> (27/10/2026) nas instâncias e estimativas no que depende do uso.</p>
   <div class="phases">
     <div class="phase">
-      <div class="tag">Fase 2</div>
-      <div class="users">Receita e confiança</div>
+      <div class="tag">Fase 1 · MVP</div>
+      <div class="users">até 10 mil utilizadores</div>
+      <p class="ag-note">~1 pedido/s no pico · 250 marcações/dia · ≈ 290 US$/mês</p>
       <ul>
-        <li>Reagendar sem cancelar (hoje é preciso cancelar e marcar de novo).</li>
-        <li>Lista de espera para horários cheios.</li>
-        <li>Modelo de receita: assinatura da barbearia ou comissão, sobre o registo de pagamentos que já existe.</li>
-        <li>Denúncias e moderação.</li>
-        <li>Exportação dos dados pessoais.</li>
-        <li>Aprovar o segundo fator com um toque na app (push).</li>
+        <li>Os 11 passos do plano acima: os oito módulos e a AWS.</li>
+        <li>A produção aprovada: 2 tarefas Fargate, RDS db.t4g.small Multi-AZ, ALB com WAF e 1 NAT, sem Redis. Aguenta muito mais do que este volume; as 2 tarefas e o Multi-AZ existem pela disponibilidade, não pela carga.</li>
+        <li>Jobs (push, lembretes, slots, outbox) dentro da API, com ShedLock.</li>
+        <li>Logs em JSON, métricas no CloudWatch e os alarmes da parte 3.</li>
+        <li>Teste de carga com k6, com a disputa do mesmo horário, antes de abrir ao público.</li>
+        <li>Fora do código: o pedido à APD, o domínio <code>.ao</code> e as aprovações da Meta e da Apple.</li>
       </ul>
+      <p class="ag-note"><strong>Passar à fase 2 quando:</strong> o p95 dos horários livres passar de 300 ms, o CPU do RDS passar de 60% no pico de sábado, ou houver mais de 50 mil utilizadores.</p>
     </div>
     <div class="phase">
-      <div class="tag">Fase 3</div>
-      <div class="users">Escala</div>
+      <div class="tag">Fase 2 · Crescimento</div>
+      <div class="users">até 100 mil utilizadores</div>
+      <p class="ag-note">~10 pedidos/s no pico · 2.500 marcações/dia · ≈ 490 US$/mês</p>
       <ul>
-        <li>Pagamento eletrónico por um agregador angolano, com reembolso automático.</li>
-        <li>Redis para a cache da busca e dos horários, e para os limites com várias instâncias.</li>
-        <li>CDN à frente das fotos públicas (avatares e capas).</li>
-        <li>Réplica de leitura para a busca e a agenda pública.</li>
-        <li>Particionamento mensal das mensagens, das notificações e dos slots.</li>
+        <li><strong>Cache Valkey</strong> (ElastiCache, cache.t4g.small com réplica, ≈ 48 US$):
+          <ul>
+            <li>a busca, por 60 s;</li>
+            <li>o perfil da barbearia, por 5 min;</li>
+            <li>os horários livres, por 30 s, invalidados pelos eventos de marcação.</li>
+          </ul>
+          Os slots nunca vêm da cache na hora de marcar.</li>
+        <li><strong>RDS db.t4g.medium</strong> Multi-AZ (≈ 120 US$ mais o disco).</li>
+        <li><strong>Um NAT por zona</strong> (+≈ 42 US$): a saída para os fornecedores sobrevive à queda de uma zona.</li>
+        <li><strong>CloudFront</strong> à frente das fotos públicas (avatares e capas), com cache longa e <code>?v=</code>.</li>
+        <li><strong>OpenTelemetry:</strong> traces do pedido ao push, painéis e alertas pela velocidade de consumo do SLO.</li>
+        <li><strong>Produto:</strong> reagendar, lista de espera, modelo de receita, denúncias e moderação, exportação dos dados e 2FA aprovado por push.</li>
+        <li>Teste de carga antes de cada época forte: fim de ano e feriados nacionais.</li>
       </ul>
+      <p class="ag-note"><strong>Passar à fase 3 quando:</strong> o p95 continuar acima do SLO com a cache, o RDS passar de 60% de CPU ou de 80% das ligações, ou o job de slots demorar mais de 1 minuto a apagar.</p>
     </div>
+    <div class="phase">
+      <div class="tag">Fase 3 · Escala</div>
+      <div class="users">1 milhão+ de utilizadores</div>
+      <p class="ag-note">~100 pedidos/s no pico · 25.000 marcações/dia · ≈ 1.200 US$/mês</p>
+      <ul>
+        <li><strong>Tarefas da API:</strong> de 3 a 8, com autoscaling, nas 3 zonas da região e com um NAT por zona.</li>
+        <li><strong>Workers à parte:</strong> um serviço ECS (mesma imagem, perfil <code>worker</code>) corre o push, os lembretes, os slots e o outbox. Assim, os picos de envio não tiram CPU aos pedidos.</li>
+        <li><strong>Banco:</strong>
+          <ul>
+            <li>RDS db.m6g.large Multi-AZ (≈ 304 US$ mais o disco);</li>
+            <li>uma réplica de leitura para a busca e os horários livres (≈ 153 US$);</li>
+            <li>RDS Proxy à frente das ligações (≈ 29 US$).</li>
+          </ul></li>
+        <li><strong>Particionamento mensal</strong> de <code>member_slots</code>, <code>messages</code> e <code>notifications</code>: largar partições em vez de apagar milhões de linhas.</li>
+        <li><strong>Pagamento eletrónico</strong> por um agregador angolano, com reembolso automático. O módulo <code>payment</code> pode sair para um serviço próprio, se o agregador exigir isolamento.</li>
+        <li><strong>Dados para análise:</strong> exportação por CDC para o S3, consultada com o Athena, longe do banco de produção.</li>
+        <li><strong>Desastre regional:</strong> snapshots copiados para outra região (<code>eu-west-1</code>).</li>
+        <li>Plantão com runbooks e testes de carga regulares.</li>
+        <li>Menos SMS: passkeys e WhatsApp como formas de entrar por omissão.</li>
+      </ul>
+      <p class="ag-note"><strong>Depois daqui:</strong> OpenSearch só se a busca geográfica no PostgreSQL passar do SLO, e microserviços só para um módulo com uma razão concreta para sair.</p>
+    </div>
+  </div>
+  <div class="wide">
+    <table class="grid">
+      <thead><tr><th>Custo por mês</th><th>Fase 1</th><th>Fase 2</th><th>Fase 3</th></tr></thead>
+      <tbody>
+        <tr><td>Tarefas da API e workers <span class="src">AWS</span></td><td class="num">78</td><td class="num">≈ 100</td><td class="num">≈ 196</td></tr>
+        <tr><td>RDS, disco, réplica e Proxy <span class="src">AWS</span></td><td class="num">75</td><td class="num">≈ 150</td><td class="num">≈ 576</td></tr>
+        <tr><td>Valkey <span class="src">AWS</span></td><td class="num">—</td><td class="num">48</td><td class="num">48</td></tr>
+        <tr><td>NAT (1, 2 e 3) <span class="src">AWS</span></td><td class="num">42</td><td class="num">84</td><td class="num">126</td></tr>
+        <tr><td>ALB, WAF e IPv4 <span class="src">AWS</span></td><td class="num">67</td><td class="num">≈ 56</td><td class="num">≈ 94</td></tr>
+        <tr><td>CloudWatch, CloudFront, S3, segredos, ECR e DNS <span class="src est">estimativa</span></td><td class="num">≈ 28</td><td class="num">≈ 50</td><td class="num">≈ 130</td></tr>
+        <tr><td><b>Total</b>, sem o tráfego de saída</td><td class="num">≈ 290 US$</td><td class="num">≈ 490 US$</td><td class="num">≈ 1.200 US$</td></tr>
+      </tbody>
+    </table>
   </div>
 </section>
 </div>
