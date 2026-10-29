@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="Okuteta">
+  <title>Okuteta</title>
+  <rect width="1024" height="1024" fill="#111111"/>
+  <g transform="translate(539.54 487.54) scale(0.9130) rotate(45)">
+    <path d="M100.9 169.5Q78.4 84.8 0 0" stroke="#B8952F" stroke-width="44" stroke-linecap="butt" fill="none"/>
+    <path fill="#B8952F" d="M-39.5 6.0L-64.0 -420.0Q30.5 -198.0 39.5 -6.0Z"/>
+    <path fill="#B8952F" fill-rule="evenodd" d="M38.0 252.0a112 112 0 1 0 224 0a112 112 0 1 0 -224 0ZM80.0 252.0a70 70 0 1 0 140 0a70 70 0 1 0 -140 0Z"/>
+    <path d="M-59.7 118.3Q-57.8 59.2 0 0" stroke="#D4AF37" stroke-width="46" stroke-linecap="butt" fill="none"/>
+    <path fill="#D4AF37" d="M39.5 6.0L64.0 -420.0Q-30.5 -198.0 -39.5 -6.0Z"/>
+    <path fill="#D4AF37" fill-rule="evenodd" d="M-270.0 238.0a150 150 0 1 0 300 0a150 150 0 1 0 -300 0ZM-218.0 238.0a98 98 0 1 0 196 0a98 98 0 1 0 -196 0Z"/>
+    <circle r="40" fill="#D4AF37"/>
+    <circle r="11" fill="#111111"/>
+  </g>
+</svg>
