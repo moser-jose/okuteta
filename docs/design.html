@@ -229,7 +229,7 @@ footer { color: var(--muted); font-size: 14px; border-top: 1px solid var(--line)
     <div class="toc-g"><a href="#arquitetura"><b>3</b>Arquitetura</a><span><a href="#visao">Visão geral</a><a href="#dependencias">Dependências</a><a href="#aws">Na AWS</a><a href="#custos">Custos</a></span></div>
     <div class="toc-g"><a href="#capacidade"><b>4</b>Capacidade</a><span><a href="#capacidade">10 mil, 100 mil, 1 milhão</a></span></div>
     <div class="toc-g"><a href="#operacao"><b>5</b>Operação</a></div>
-    <div class="toc-g"><a href="#roadmap"><b>6</b>Plano de construção</a><span><a href="#escala">Roadmap de escala</a></span></div>
+    <div class="toc-g"><a href="#roadmap"><b>6</b>Plano de construção</a><span><a href="#escala">Roadmap de escala</a><a href="#beleza">Outros serviços de beleza</a></span></div>
   </nav>
   <div class="legend" id="legend"></div>
 </header>
@@ -279,6 +279,7 @@ footer { color: var(--muted); font-size: 14px; border-top: 1px solid var(--line)
         <tr><td class="num">20</td><td>Conta sem 2FA nem códigos</td><td>O administrador desliga o 2FA depois de confirmar a identidade fora da app (por exemplo, videochamada com o BI): <code>ResetMfaByAdmin</code></td><td class="fx">Fica gravado quem o fez (<code>mfa_reset_by</code>). Nas 24 h seguintes não há ações sensíveis, e o dono recebe avisos por SMS e e-mail: quem roubou a conta não consegue mudar a senha nem as contas de pagamento antes de o dono reagir.</td></tr>
         <tr><td class="num">21</td><td>Recusa em "qualquer um"</td><td>A marcação fica REJECTED e o cliente marca de novo; não passa a outro barbeiro</td><td class="fx">Simples e previsível. O aviso leva um atalho para os outros horários.</td></tr>
         <tr><td class="num">22</td><td>Convenções da API</td><td>Parâmetros em inglês, paginação por cursor, horas em UTC e repetição segura (ver <a href="#convencoes">Convenções</a>)</td><td class="fx">Os caminhos e o JSON já estavam em inglês; os parâmetros de query estavam em português.</td></tr>
+        <tr><td class="num">23</td><td>Outros serviços de beleza</td><td>O MVP é só de barbearias, mas o código não fecha a porta a maquilhagem, unhas, massagem e estética (ver <a href="#beleza">Outros serviços de beleza</a>)</td><td class="fx">Custa três regras no código (nada de barbearia no domínio, palavras fora do código, agenda por "dono da agenda") e evita refazer o modelo quando o negócio alargar.</td></tr>
       </tbody>
     </table>
   </div>
@@ -427,6 +428,7 @@ sequenceDiagram
         <tr><td class="num">9</td><td class="fx">Visão geral, dependências entre módulos, ciclos de vida, exemplos de pedidos, riscos, revisões, filtros nos casos de uso e índice por partes. Entraram 6 casos de uso públicos que faltavam, os avisos de segurança passaram do <code>user</code> para o <code>notification</code>, os custos foram confirmados na API de preços da AWS e o exemplo da agenda foi corrigido (às 14:30 o Mário não cabe).</td></tr>
         <tr><td class="num">11</td><td class="fx">Capacidade e roadmap de escala para 10 mil, 100 mil e 1 milhão de utilizadores, com o que entra em cada fase, os gatilhos para passar à seguinte e o custo. A estimativa de marcações baixou de 3 por barbeiro por dia para 1,5 por cliente ativo por mês.</td></tr>
         <tr><td class="num">12</td><td class="fx">As quatro questões em aberto respondidas (decisões 17 a 20) e a recusa em "qualquer um" (21), com 4 casos de uso novos (<code>AcceptTerms</code>, <code>ResetMfaByAdmin</code>, <code>PromoteAdmins</code>, <code>ReinstateShop</code>). Convenções da API: parâmetros em inglês, cursor, UTC e repetição segura nos pagamentos. Regra geral do WAF para a busca e os horários. Preços do CloudWatch, Secrets Manager, ECR e Route 53 confirmados, com o filtro de métricas. Os dados passaram para <code>design-data.js</code>, que gera as tabelas dos README.</td></tr>
+        <tr><td class="num">13</td><td class="fx">Decisão 23: o MVP continua só de barbearias, mas o design regista o que muda para outros serviços de beleza (maquilhagem, unhas, massagem, estética) e as três regras que o código de agora segue para não fechar essa porta.</td></tr>
       </tbody>
     </table>
   </div>
@@ -1262,6 +1264,46 @@ POST /api/v1/bookings/0192…/payment/declare
         <tr><td>ALB, WAF e IPv4 <span class="src">AWS</span></td><td class="num">68</td><td class="num">≈ 56</td><td class="num">≈ 94</td></tr>
         <tr><td>CloudWatch, CloudFront, S3, segredos, ECR e DNS <span class="src">AWS</span> <span class="src est">uso estimado</span></td><td class="num">≈ 23</td><td class="num">≈ 50</td><td class="num">≈ 130</td></tr>
         <tr><td><b>Total</b>, sem o tráfego de saída</td><td class="num">≈ 290 US$</td><td class="num">≈ 490 US$</td><td class="num">≈ 1.200 US$</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="beleza">
+  <div class="eyebrow">Mais tarde</div>
+  <h2>Outros serviços de beleza</h2>
+  <p>O MVP é só de barbearias. A qualquer momento, o Okuteta pode passar a ter outros serviços: maquilhagem, unhas e nail art, massagem, estética. Nada disso entra agora. O design só fica a saber que esse dia pode chegar, e o código de barbearias segue três regras para não fechar a porta.</p>
+  <div class="two">
+    <div>
+      <h3>Já serve para qualquer serviço</h3>
+      <ul class="plain">
+        <li>A agenda por slots, os horários livres e "qualquer um".</li>
+        <li>Marcações com vários serviços, cada um com a sua duração e preço.</li>
+        <li><code>member_services</code>: quem faz o quê.</li>
+        <li>Avaliações, pagamentos e reembolsos, chat, notificações, entrada e 2FA.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Regras para o código de agora</h3>
+      <ul class="plain">
+        <li><strong>Nada de barbearia no domínio:</strong> nenhum enum de serviços (corte, barba), nenhuma regra que só valha para cortes. Os serviços são livres, com nome, duração e preço.</li>
+        <li><strong>Palavras da app fora do código:</strong> "barbearia" e "barbeiro" ficam nos ficheiros de mensagens e nos textos da app, não em nomes de classes nem em regras. Mudar para "salão" e "profissional" é mudar texto.</li>
+        <li><strong>A porta da agenda fala de "dono da agenda":</strong> <code>ReserveSlots</code> recebe quem tem a agenda (hoje, sempre um barbeiro), para mais tarde poder ser também uma sala ou uma maca.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="wide">
+    <table class="grid">
+      <thead><tr><th>O que muda nesse dia</th><th>Exemplo</th><th>Como</th><th>Peso</th></tr></thead>
+      <tbody>
+        <tr><td>Nomes</td><td class="fx">barbearia → estabelecimento, barbeiro → profissional</td><td class="fx">O módulo <code>shop</code> pode passar a <code>business</code>; <code>shop_members</code> ganha um <code>title</code> ("Manicure", "Massagista").</td><td>leve</td></tr>
+        <tr><td>Categorias</td><td class="fx">Unhas › nail art; Massagem › relaxante</td><td class="fx">Tabela <code>service_categories</code> em dois níveis, gerida pelo administrador; cada serviço aponta para uma; a busca filtra por categoria.</td><td>leve</td></tr>
+        <tr><td>Tempo de preparação</td><td class="fx">15 min para preparar a sala de massagem</td><td class="fx"><code>services.buffer_after_min</code>: a marcação ocupa também esses slots.</td><td>leve</td></tr>
+        <tr><td>Preço variável</td><td class="fx">nail art depende do desenho</td><td class="fx"><code>services.price_from</code>: a app mostra "a partir de" e o preço final fica na marcação.</td><td>leve</td></tr>
+        <tr><td>Recursos além da pessoa</td><td class="fx">sala e maca; 3 manicures e 2 mesas</td><td class="fx">Tabela <code>resources</code>; a marcação ocupa os slots da profissional e os do recurso, com a mesma trava e o mesmo <code>UPDATE</code> condicional.</td><td>médio: toca na regra central da agenda</td></tr>
+        <tr><td>Sinal antecipado</td><td class="fx">maquilhagem de noiva marcada meses antes</td><td class="fx">A marcação só fica confirmada depois de pago o sinal; muda o ciclo de vida do pagamento.</td><td>médio</td></tr>
+        <tr><td>Ao domicílio</td><td class="fx">maquilhagem ou massagem em casa do cliente</td><td class="fx">Morada do cliente, área de atendimento, tempo de deslocação entre marcações e regras de segurança para a profissional.</td><td>grande</td></tr>
+        <tr><td>Marca</td><td class="fx">o nome fala de cortar e o ícone é uma tesoura</td><td class="fx">Ou a tesoura fica como uma das categorias, ou o ícone passa a algo mais geral de beleza e cuidado.</td><td>decisão de negócio</td></tr>
       </tbody>
     </table>
   </div>

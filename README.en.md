@@ -65,6 +65,17 @@ uses English names (`shop`, `booking`, `member`); user-facing text is in Angolan
 
 Product features by phase. The infrastructure each phase adds is in [Scale roadmap](#scale-roadmap).
 
+**Other beauty services.** The MVP is barbershops only, but Okuteta may grow at any time to make-up, nails and nail
+art, massage and aesthetics. Nothing of that is built now. The code follows three rules so that day doesn't mean a
+rewrite:
+
+- no barbershop logic in the domain: no service enums, no rules that only apply to haircuts;
+- user-facing words ("barbearia", "barbeiro") live in message files, not in class names or rules;
+- the schedule port takes a "schedule owner" (today always a barber), so it can later also be a room or a table.
+
+What would change (categories, preparation time, "from" prices, rooms and tables, deposits, home visits, brand) is
+in the design, under "Outros serviços de beleza".
+
 - **Phase 2:**
   - reschedule without cancelling;
   - waiting list;
@@ -358,7 +369,7 @@ ShedLock), `event` reacts to another module's events, and `public` is called by 
 | `RemoveTimeOff` | endpoint | `DELETE /api/v1/members/{id}/time-off/{timeOffId}` | Barber or owner | Regenerates the period's slots |
 | `ListTimeOff` | endpoint | `GET /api/v1/members/{id}/time-off?from=&to=` | Barber or owner | Lists time off in the period |
 | `GetAvailability` | endpoint | `GET /api/v1/shops/{id}/availability?date=&serviceIds=&memberId=` | Visitor | Reads the day's free slots and returns the start times with enough consecutive slots for the total duration, respecting the minimum notice. Without a barber, the union of everyone who does the services |
-| `ReserveSlots` | public | — | booking | Takes the interval's slots with `UPDATE … WHERE booking_id IS NULL` and checks the row count. If any is missing, the booking fails with 409 |
+| `ReserveSlots` | public | — | booking | Takes the schedule owner (today always a barber; later also a room or table) and takes the interval's slots with `UPDATE … WHERE booking_id IS NULL` and checks the row count. If any is missing, the booking fails with 409 |
 | `GenerateSlots` | job | daily | System | For every barber, in the barbershop's time zone, generates slots for every day in the window (`max_advance_days`) that doesn't have them yet. A missed run is fixed by the next one |
 | `PurgePastSlots` | job | daily | System | Deletes slots older than 7 days |
 | `OnBookingEnded` | event | BookingCancelled, BookingRejected, BookingExpired | System | Frees the slots (`booking_id = NULL`) |

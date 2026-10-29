@@ -63,6 +63,17 @@ nomes em inglês (`shop`, `booking`, `member`); os textos que o utilizador vê u
 
 Funcionalidades por fase. O que cada fase junta à infraestrutura está no [Roadmap de escala](#roadmap-de-escala).
 
+**Outros serviços de beleza.** O MVP é só de barbearias, mas o Okuteta pode alargar a qualquer momento a maquilhagem,
+unhas e nail art, massagem e estética. Nada disso se constrói agora. O código segue três regras para esse dia não
+obrigar a refazer nada:
+
+- nada de barbearia no domínio: nenhum enum de serviços, nenhuma regra que só valha para cortes;
+- as palavras da app ("barbearia", "barbeiro") ficam nos ficheiros de mensagens, não em nomes de classes nem em regras;
+- a porta da agenda recebe o "dono da agenda" (hoje, sempre um barbeiro), para mais tarde poder ser uma sala ou uma maca.
+
+O que mudaria (categorias, tempo de preparação, preço "a partir de", salas e macas, sinal, domicílio, marca) está no
+design, em "Outros serviços de beleza".
+
 - **Fase 2:**
   - reagendar sem cancelar;
   - lista de espera;
@@ -356,7 +367,7 @@ endpoint.
 | `RemoveTimeOff` | endpoint | `DELETE /api/v1/members/{id}/time-off/{timeOffId}` | Barbeiro ou dono | Volta a gerar os slots do período. |
 | `ListTimeOff` | endpoint | `GET /api/v1/members/{id}/time-off?from=&to=` | Barbeiro ou dono | Lista as folgas no período. |
 | `GetAvailability` | endpoint | `GET /api/v1/shops/{id}/availability?date=&serviceIds=&memberId=` | Visitante | Lê os slots livres do dia e devolve os inícios com slots seguidos suficientes para a soma das durações, respeitando a antecedência mínima. Sem barbeiro, mostra a união dos que fazem os serviços. |
-| `ReserveSlots` | público | — | booking | Ocupa os slots do intervalo com `UPDATE … WHERE booking_id IS NULL` e confere o número de linhas. Se faltar alguma, a marcação falha com 409. |
+| `ReserveSlots` | público | — | booking | Recebe o dono da agenda (hoje, sempre um barbeiro; mais tarde também uma sala ou maca) e ocupa os slots do intervalo com `UPDATE … WHERE booking_id IS NULL` e confere o número de linhas. Se faltar alguma, a marcação falha com 409. |
 | `GenerateSlots` | job | diário | Sistema | Gera, para cada barbeiro e no fuso da barbearia, os slots de todos os dias da janela (`max_advance_days`) que ainda não os têm. Uma corrida perdida corrige-se na seguinte. |
 | `PurgePastSlots` | job | diário | Sistema | Apaga os slots com mais de 7 dias. |
 | `OnBookingEnded` | evento | BookingCancelled, BookingRejected, BookingExpired | Sistema | Liberta os slots (`booking_id = NULL`). |
